@@ -2,6 +2,16 @@
 
 This is a Bachelor Thesis researching how an ML algorithm can detect GPS Spoofing attempts. This will be done with IoT Pycom devices receiving GPS signals and communicating it to a different Pycom that will run the ML and try to detect spoofing attempts.
 
+## Practical Workflow with Git
+1. Before starting work, pull the latest dev
+2. Create your feature branch: git checkout -b feature/your-feature dev
+3. Make small frequent commits with clear messages
+4. When done, open a Pull Request to dev
+5. Have the other person do a quick review
+6. Merge to dev and delete the feature branch
+7. Periodically merge dev to main with stable milestones.
+
+
 ## Pycom Development Environment
 
 This guide will help you set up your development environment for working with Pycom devices (LoPy4, FiPy, etc.).
