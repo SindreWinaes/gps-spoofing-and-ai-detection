@@ -30,4 +30,76 @@ python3 --version
 
 
 
-### Node.js
+### 2. Node.js
+
+Node.js is required for Pymakr extension to fucntion. 
+
+#### Windows:
+
+1. Download LTS version from https://nodejs.org/
+2. Run installer with default settings
+3. Restart your computer
+4. Verify: Open Command Promt and run node --version
+
+#### Linux (Ubuntu/Debian):
+
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt install -y nodejs
+node --version
+
+#### MacOS:
+
+brew install node
+node --version
+
+### 3. Git
+
+#### Windows
+
+1. Download from https://git-scm.com/download/win
+2. Install with default settings
+3. Verify: Open Command Prompt and run git --version
+
+
+#### Linux (Ubuntu/Debian)
+
+sudo apt install git
+git --version
+
+#### MacOS
+
+brew install git
+git --version
+
+### 4. VS Code
+Download and install from https://code.visualstudio.com/
+
+Install the following extensions:
+
+#### Requierd
+Extension  | Publisher | Description
+Python       Microsoft   Python language support, debugging, Intellisense
+Pylance      Microsoft   Better Python autocomplete and type checking
+Pymakr       Pycom       Upload code to Pycom devices, REPL access, device management
+
+#### Recomended
+Extension  | Publisher | Description
+Python Indent
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
