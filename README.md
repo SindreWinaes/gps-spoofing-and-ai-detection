@@ -1,101 +1,210 @@
 # gps-spoofing-and-ai-detection
-This is a Bachelor Thesis researching how an ML algorithm can detect GPS Spoofing attempts, this will be done with IoT Pycom devices recieving GPS signals and communicating it to a different Pycom that will run the ML and try to detect spoofing attempts.
+
+This is a Bachelor Thesis researching how an ML algorithm can detect GPS Spoofing attempts. This will be done with IoT Pycom devices receiving GPS signals and communicating it to a different Pycom that will run the ML and try to detect spoofing attempts.
 
 ## Pycom Development Environment
 
-This Guide will help you setup your development environment for working with Pycom devices (LoPy4, FiPy etc.).
+This guide will help you set up your development environment for working with Pycom devices (LoPy4, FiPy, etc.).
 
-## Prerequisits
+## Prerequisites
 
 ### 1. Python
 
 #### Windows:
 
-1. Download Python from  https://www.python.org/downloads/
+1. Download Python from https://www.python.org/downloads/
 2. Run the installer
-3. Important; Check "Add Python to PATH" during installation
-4. Verify installation: Open Comand Prompt/Terminal and run: python --verison
+3. **Important:** Check "Add Python to PATH" during installation
+4. Verify installation: Open Command Prompt and run `python --version`
 
-#### Linux(Ubuntu/Debian):
+#### Linux (Ubuntu/Debian):
 
+```bash
 sudo apt update
 sudo apt install python3 python3-pip python3-venv
 python3 --version
+```
 
-#### MacOS:
+#### macOS:
 
-Homebrew recomended:
+Using Homebrew (recommended):
+
+```bash
 brew install python
 python3 --version
-
-
+```
 
 ### 2. Node.js
 
-Node.js is required for Pymakr extension to fucntion. 
+Node.js is required for the Pymakr extension to function.
 
 #### Windows:
 
 1. Download LTS version from https://nodejs.org/
 2. Run installer with default settings
 3. Restart your computer
-4. Verify: Open Command Promt and run node --version
+4. Verify: Open Command Prompt and run `node --version`
 
 #### Linux (Ubuntu/Debian):
 
+```bash
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt install -y nodejs
 node --version
+```
 
-#### MacOS:
+#### macOS:
 
+```bash
 brew install node
 node --version
+```
 
 ### 3. Git
 
-#### Windows
+#### Windows:
 
 1. Download from https://git-scm.com/download/win
 2. Install with default settings
-3. Verify: Open Command Prompt and run git --version
+3. Verify: Open Command Prompt and run `git --version`
 
+#### Linux (Ubuntu/Debian):
 
-#### Linux (Ubuntu/Debian)
-
+```bash
 sudo apt install git
 git --version
+```
 
-#### MacOS
+#### macOS:
 
+```bash
 brew install git
 git --version
+```
 
 ### 4. VS Code
+
 Download and install from https://code.visualstudio.com/
 
 Install the following extensions:
 
-#### Requierd
-| Extension  | Publisher | Description |
-|------------|-----------|-------------|
-| Python     | Microsoft | Python language support, debugging, Intellisense
-| Pylance      | Microsoft   | Better Python autocomplete and type checking
-| Pymakr       | Pycom       | Upload code to Pycom devices, REPL access, device management
+#### Required
 
-#### Recomended
-Extension  | Publisher | Description
-Python Indent
+| Extension | Publisher | Description |
+|-----------|-----------|-------------|
+| Python | Microsoft | Python language support, debugging, IntelliSense |
+| Pylance | Microsoft | Better Python autocomplete and type checking |
+| Pymakr | Pycom | Upload code to Pycom devices, REPL access, device management |
+
+#### Recommended
+
+| Extension | Publisher | Description |
+|-----------|-----------|-------------|
+| Python Indent | Kevin Rose | Fixes Python indentation |
+| GitLens | GitKraken | Enhanced Git integration and history |
+| Git Graph | mhutchie | Visualize Git branches |
+
+## Project Setup
+
+### 1. Clone Repository
+
+```bash
+git clone git@github.com:SindreWinaes/gps-spoofing-and-ai-detection.git
+```
+
+### 2. Create Virtual Environment
+
+Virtual environments keep project dependencies isolated. Make sure you are in the project folder.
+
+```bash
+cd gps-spoofing-and-ai-detection
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+**Windows (PowerShell):**
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+> **Note:** If you get a PowerShell execution policy error, run:
+> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+**Linux/macOS:**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. Open Project in VS Code
+
+Open the project folder in VS Code. It will automatically detect the virtual environment and ask if you want to use it as the Python interpreter - click **Yes**.
+
+If it doesn't ask automatically:
+
+1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
+2. Type "Python: Select Interpreter"
+3. Choose the interpreter from your `venv` folder
+
+### 4. Working with the Virtual Environment
+
+**What do I do next time I open the project?**
+
+VS Code remembers your interpreter selection. When you open the project folder again:
+
+1. VS Code automatically uses the correct virtual environment
+2. Open a new terminal in VS Code (`Ctrl+`` ` or View → Terminal)
+3. The terminal should automatically activate the venv (you'll see `(venv)` in the prompt)
+4. If it doesn't activate automatically, you can manually activate it:
+   - **Windows:** `venv\Scripts\activate`
+   - **Linux/macOS:** `source venv/bin/activate`
+
+**VS Code GUI for virtual environments:**
+
+VS Code shows the current Python interpreter in the bottom status bar (bottom right). Click on it to:
+
+- See which interpreter/venv is active
+- Switch to a different interpreter
+- Select a virtual environment
+
+**Manually deactivating (optional):**
+
+If you want to manually deactivate the virtual environment, type `deactivate` in the same terminal where you activated it and press Enter. This works the same on all operating systems.
+
+## Pycom Device Setup
+
+1. Connect your device via USB to your computer
+2. While in your project folder, look for the Pymakr panel in the sidebar
+3. Click "List all devices"
+4. Your device should appear - click "Connect"
+5. Click "Sync project to device" in the Pymakr panel
+6. Press the reset button on your device
 
 
+## Troubleshooting
 
+**Pymakr commands not working**
 
+- Make sure Node.js is installed and restart VS Code
+- Try uninstalling and reinstalling the Pymakr extension
+- Check View → Output → Pymakr for error messages
 
+**Device not detected**
 
-
-
-
-
+- Try a different USB cable (some are charge-only)
+- Try a different USB port
+- Check Device Manager (Windows) or run `ls /dev/ttyUSB*` (Linux/macOS)
 
 
 
