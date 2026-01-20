@@ -77,10 +77,11 @@ Download and install from https://code.visualstudio.com/
 Install the following extensions:
 
 #### Requierd
-Extension  | Publisher | Description
-Python       Microsoft   Python language support, debugging, Intellisense
-Pylance      Microsoft   Better Python autocomplete and type checking
-Pymakr       Pycom       Upload code to Pycom devices, REPL access, device management
+| Extension  | Publisher | Description |
+|------------|-----------|-------------|
+| Python     | Microsoft | Python language support, debugging, Intellisense
+| Pylance      | Microsoft   | Better Python autocomplete and type checking
+| Pymakr       | Pycom       | Upload code to Pycom devices, REPL access, device management
 
 #### Recomended
 Extension  | Publisher | Description
