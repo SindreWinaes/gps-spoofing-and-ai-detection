@@ -102,10 +102,11 @@ Install the following extensions:
      - cd gps-spoofing-and-ai-detectio
        
      **Command prompt:**
+   '''bash
      python -m venv venv
      venv\Scripts\activate
      pip install -r requirements.txt
-
+   '''
      **Powershell:**
      python -m venv venv
      .\venv\Scripts\Activate.ps1
