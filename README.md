@@ -84,17 +84,86 @@ Install the following extensions:
 | Pymakr       | Pycom       | Upload code to Pycom devices, REPL access, device management
 
 #### Recomended
-Extension  | Publisher | Description
-Python Indent
+| Extension  | Publisher | Description |
+|------------|-----------|-------------|
+| Python Indent | Kevin Rose | Fixes Python indentation |
+| GitLens | GitKraken | Enhanced Git integration history| 
+| Git Graph | mhutchie | Visualize Git Branches | 
 
 
+## Project Setup
+
+1. Clone Repository:
+     - git clone git@github.com:SindreWinaes/gps-spoofing-and-ai-detection.git
+     - 
+2. Create virtual environment, this keeps project dependencies. Make sure you are in the projectfolder:
+
+     **cd to project folder**
+     - cd gps-spoofing-and-ai-detectio
+       
+     **Command prompt:**
+     python -m venv venv
+     venv\Scripts\activate
+     pip install -r requirements.txt
+
+     **Powershell:**
+     python -m venv venv
+     .\venv\Scripts\Activate.ps1
+     pip install -r requirements.txt
+
+   **Linux/MacOS:**
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+
+5. Open project in VS code, it will automatically detect the virtual environment (venv) and ask to use it as the interpreter, click Yes.
+
+If it doesn't ask automatically:
+1. Press Ctrl+Shift+P (Cmd+Shift+P on MacOS)
+2. Type "Python:Select Interpreter"
+3. Choose interpreter from your venv folder.
+    
+VS Code remembers your interpreter selection. When you open the project folder again:
+
+VS Code automatically uses the correct virtual environment
+Open a new terminal in VS Code (Ctrl+` or View → Terminal)
+The terminal should automatically activate the venv (you'll see (venv) in the prompt)
+If it doesn't activate automatically, you can manually activate it:
+
+Windows: venv\Scripts\activate
+Linux/macOS: source venv/bin/activate
+
+VS Code GUI for virtual environments:
+VS Code shows the current Python interpreter in the bottom status bar (bottom right). Click on it to:
+
+See which interpreter/venv is active
+Switch to a different interpreter
+Select a virtual environmen
+
+Manually deactivating (optional):
+If you want to manually deactivate the virtual environment, type deactivate in the same terminal where you activated it and press Enter. This works the same on all operating systems.
 
 
+## Pycom Device Setup
+1. Connect Your Device via USB to you computer.
+2. While in your project folder, look for Pymakr panel in the sidebar.
+3. Click "List all devices".
+4. Your Device should apear, click "Connect"
+5. Click "Sync project to device" in the Pymakr panel. 
+6. Press the reset button on your device.
 
 
+## Troubleshooting
 
+**Pymakr commands not working**
+- Make sure Node.js is installed and restart VS Code.
+- Try uninstalling and reinstalling the Pymakr extension
+- Check view -> Output -> Pymakr for error messages.
 
-
+**Device not detected**
+- Try different USB cables (some are power only)
+- Try different USB port.
+- Check device manager.
 
 
 
