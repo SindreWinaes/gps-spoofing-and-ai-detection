@@ -5,7 +5,7 @@ This is a Bachelor Thesis researching how an ML algorithm can detect GPS Spoofin
 
 This Guide will help you setup your development environment for working with Pycom devices (LoPy4, FiPy etc.).
 
-## Prerequisits
+## Prerequisites
 
 ### 1. Python
 
