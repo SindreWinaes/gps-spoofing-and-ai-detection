@@ -1,1 +1,1 @@
-# main.py - Sensor Node 2: Reads GPS + accelerometer, sends via LoRa
+# main.py -- put your code here!

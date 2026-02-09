@@ -1,1 +1,1 @@
-# boot.py - Gateway (Pygate + FiPy)
+# boot.py -- run on boot-up
