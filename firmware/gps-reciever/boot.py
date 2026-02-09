@@ -1,1 +1,1 @@
-# boot.py - Sensor Node 1 (Pytrack + FiPy)
+# boot.py -- run on boot-up
