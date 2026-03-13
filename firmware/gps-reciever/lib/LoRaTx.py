@@ -12,6 +12,11 @@ class LoRaTx:
         # Initialize Lora EU68
         self.lora = LoRa(mode=LoRa.LORA, region=LoRa.EU868)
 
+        self.lora.frequency(868100000)
+        self.lora.bandwidth(LoRa.BW_125KHZ)
+        self.lora.sf(spreading_factor)
+        self.lora.tx_power(tx_power)
+
         self.s = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
         self.s.setblocking(False)
         
