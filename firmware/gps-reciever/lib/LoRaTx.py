@@ -53,7 +53,10 @@ class LoRaTx:
     def send(self, gps_data, accel_data):
         try: 
             packed = self._pack_data(gps_data, accel_data)
+            
+            self.s.setblocking(True)
             bytes_sent = self.s.send(packed)
+            self.s.setblocking(False)
             
             if bytes_sent == len(packed):
                 self.packets_sent += 1
