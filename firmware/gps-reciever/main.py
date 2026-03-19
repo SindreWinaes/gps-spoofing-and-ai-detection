@@ -1,16 +1,16 @@
-import pycom # Gives control over Pycom features
+import pycom
 import time
 from time import sleep
-from pycoproc import Pycoproc # Pyproc handles communication with Pytracks PIC microcontroller
-from L76GNSS import L76GNSS # L76GNSS handles comunication with the L76 GPS over I2C
-from LIS2HH12 import LIS2HH12 # LIS2HH12 handles communication with acelerometer over I2C
-
-
+from pycoproc import Pycoproc
+from L76GNSS import L76GNSS
+from LIS2HH12 import LIS2HH12
 
 from GPSSensor import GPSSensor
 from AccelSensor import AccelSensor
 from LoRaTx import LoRaTx
 
+from machine import SD
+import os
 
 
 def main():
@@ -24,6 +24,17 @@ def main():
     accel_sensor = AccelSensor(lis)
     
     lora_tx = LoRaTx(tx_power=14, spreading_factor=10)
+
+    # -------- SD CARD SETUP --------
+    sd = SD()
+    os.mount(sd, '/sd')
+
+    log_file = "/sd/gps_log.csv"
+
+    # Write CSV header
+    with open(log_file, "w") as f:
+        f.write("time,lat,lon,alt,sats,fix,accel\n")
+    # --------------------------------
     
     pycom.heartbeat(False)
     pycom.rgbled(0x000080)    # Blue Led
@@ -46,25 +57,44 @@ def main():
                 
                 if success:
                     packet_count += 1
-                    pycom.rgbled(0x008000) # Green - Sucess
+                    pycom.rgbled(0x008000) # Green - Success
                     sleep(0.1)
-                    pycom.rgbled(0x000080) # Back to blue
+                    pycom.rgbled(0x000080)
                     sleep(0.1)
                 else:
-                    pycom.rgbled(0x800000)  # Red flash on failure
+                    pycom.rgbled(0x800000)
                     sleep(0.1)
-                    pycom.rgbled(0x000080)  # Back to blue
+                    pycom.rgbled(0x000080)
                     
-                print("GPS: {:.6f}".format(gps_data['lat'], gps_data['lon']))
+                print("GPS: {:.6f}, {:.6f}".format(gps_data['lat'], gps_data['lon']))
                 print("Sats: {},  Fix: {}".format(gps_data['sats'], gps_data['fix']))
                 print("Accel magnitude: {:.2f}".format(accel_data['magnitude'])) 
+
+                # -------- SAVE TO CSV --------
+                with open(log_file, "a") as f:
+                    line = "{},{},{},{},{},{},{}\n".format(
+                        time.time(),
+                        gps_data['lat'],
+                        gps_data['lon'],
+                        gps_data.get('alt', 0),
+                        gps_data['sats'],
+                        gps_data['fix'],
+                        accel_data['magnitude']
+                    )
+                    f.write(line)
+                # -----------------------------
+
             else: 
-                # No GPS fix
                 print("Waiting for GPS fix...")
-                print("Accel: {:.2f}, {:.2f}, {:.2f}".format(accel_data['accel_x'], accel_data['accel_y'], accel_data['accel_z']))
-                pycom.rgbled(0x808000) # Yellow, waiting for fix
+                print("Accel: {:.2f}, {:.2f}, {:.2f}".format(
+                    accel_data['accel_x'],
+                    accel_data['accel_y'],
+                    accel_data['accel_z']
+                ))
+
+                pycom.rgbled(0x808000)
                 sleep(1)
-                pycom.rgbled(0x000080) # Back to blue 
+                pycom.rgbled(0x000080)
                 
             if packet_count > 0 and packet_count % 10 == 0:
                 stats = lora_tx.get_stats()
@@ -80,9 +110,9 @@ def main():
         
         except Exception as e:
             print("Error in main loop: {}".format(e))
-            pycom.rgbled(0xFF0000) # Red Error
+            pycom.rgbled(0xFF0000)
             sleep(5)
-            pycom.rgbled(0x000080) # Back to blue
+            pycom.rgbled(0x000080)
             
 if __name__ == '__main__': 
     main()
