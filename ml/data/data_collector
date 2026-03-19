@@ -1,0 +1,87 @@
+import socket
+import struct
+from datetime import datetime
+import json
+import csv
+import os
+
+UDP_IP = "0.0.0.0"
+UDP_PORT = 5000
+
+# CSV file headers
+
+DATA_DIR = "ml/data/raw"
+os.makedirs(DATA_DIR, exist_ok=True)  # Create directory if it doesn't exist
+csv_filename = os.path.join(DATA_DIR, f"packets_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+
+
+csv_headers = [
+    'timestamp', 'packet_num', 
+    'gps_lat', 'gps_lon', 'gps_alt', 'gps_speed','gps_hdop', 'gps_sats', 'gps_course', 'gps_fix',
+    'accel_x', 'accel_y', 'accel_z', 'accel_roll', 'accel_pitch', 'accel_magnitude', 'accel_previous_mag', 'accel_jerk'
+    ]
+
+# Create csv file with header
+with open(csv_filename, 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(csv_headers)
+    
+print(f"Saving data to: {csv_filename}")
+
+# Creates UDP socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind((UDP_IP, UDP_PORT))
+
+
+print(f"Listening for packets on {UDP_IP}:{UDP_PORT}")
+print(f"Press Ctrl+C to stop\n")
+
+packet_count = 0
+
+
+try:
+    while True:
+        # Recive packet
+        data, addr = sock.recvfrom(256)
+        
+        if len(data) == 64:
+            packet_count += 1
+            
+            unpacked = struct.unpack('<fffffififfffffff', data)
+            
+            timestamp = datetime.now().isoformat()
+            
+            print(f"Packet {packet_count}: GPS({unpacked[0]:.6f}, {unpacked[1]:.6f}) "
+                  f"Sats={unpacked[5]} Accel_mag={unpacked[13]:.2f}")
+            
+            
+            with open(csv_filename, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                      timestamp,
+                    packet_count,
+                    unpacked[0],   # lat
+                    unpacked[1],   # lon
+                    unpacked[2],   # alt
+                    unpacked[3],   # speed
+                    unpacked[4],   # hdop
+                    unpacked[5],   # sats
+                    unpacked[6],   # course
+                    unpacked[7],   # fix
+                    unpacked[8],   # accel_x
+                    unpacked[9],   # accel_y
+                    unpacked[10],  # accel_z
+                    unpacked[11],  # roll
+                    unpacked[12],  # pitch
+                    unpacked[13],  # magnitude
+                    unpacked[14],  # previous_mag
+                    unpacked[15]   # jerk
+                ])
+                
+            
+except KeyboardInterrupt:
+    print(f"\nStopped. Reccieved {packet_count} pacckets total.")
+finally:
+    sock.close()
+    
+    
