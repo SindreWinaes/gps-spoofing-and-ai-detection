@@ -204,3 +204,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+<<<<<<< HEAD
+=======
+ml/data/existing data/*.xlsx
+>>>>>>> 47dd0c705a6b85f40a72a76bb135609027062c09

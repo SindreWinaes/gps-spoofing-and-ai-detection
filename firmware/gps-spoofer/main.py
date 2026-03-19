@@ -54,7 +54,6 @@ def main():
     packet_count = 0
 
     while True:
-
         try:
 
             print("\nReading sensors...")
@@ -105,7 +104,6 @@ def main():
                     pycom.rgbled(0x000080)
 
                 else:
-
                     pycom.rgbled(0x800000)
                     sleep(0.1)
                     pycom.rgbled(0x000080)
