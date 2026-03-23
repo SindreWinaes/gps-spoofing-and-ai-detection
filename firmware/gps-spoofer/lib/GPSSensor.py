@@ -50,7 +50,7 @@ class GPSSensor:
             # At 500 bytes we likely have one complete sentence
             if len (raw_data) > 500:
                 try:
-                    decode = raw_data.decode('ascii', 'ignore')
+                    decoded = raw_data.decode('ascii', 'ignore')
                     self._parse_raw_data(decoded)
                 except Exception:
                     pass
