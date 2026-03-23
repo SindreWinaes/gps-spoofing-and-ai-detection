@@ -47,7 +47,19 @@ def main():
     sd = SD()
     os.mount(sd, '/sd')
 
-    log_file = "/sd/gps_log_spoofer.csv"
+    log_file = None
+
+    while log_file is None:
+        gps_data = gps_sensor.read()
+        if gps_data and gps_data['fix'] in [1, 2] and gps_data['utc_date'] and gps_data['utc_time']:
+            date = gps_data['utc_date']     # DDMMYY
+            t =  gps_data['utc_time']       # HHMMSS.SSS
+            timestamp = "{}_{:.0f}".format(date, float(t))
+            log_file = "/sd/gps_log_spoofer_{}.csv".format(timestamp)
+            print("Log file: " + log_file)
+        else:
+            print("Waiting for GPS fix to create log file...")
+            sleep(1)
 
     # Write CSV header
     with open(log_file, "w") as f:
@@ -115,68 +127,62 @@ def main():
                 if success:
 
                     packet_count += 1
+                    pycom.rgbled(0x000080) # Solid blue = reciving gps and sending
 
-                    pycom.rgbled(0x008000)
-                    sleep(0.1)
-                    pycom.rgbled(0x000080)
-                    
-                    try:
+                    # SAVE TO CSV
+                    try:        
                         with open(log_file, "a") as f:
-                            ...
+
+                            line = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+                                time.time(),
+                                DEVICE_ID,
+                                1,                  #Label 1 = spoofed
+                                gps_data['lat'], 
+                                gps_data['lon'],
+                                gps_data['alt'],
+                                gps_data['speed'],
+                                gps_data['hdop'], 
+                                gps_data['sats'], 
+                                gps_data['course'], 
+                                gps_data['fix'],
+                               
+                               
+                                accel_data['accel_x'],
+                                accel_data['accel_y'],
+                                accel_data['accel_z'],
+                                accel_data['roll'],
+                                accel_data['pitch'],
+                                accel_data['magnitude'],
+                                accel_data['previous_mag'],
+                                accel_data['jerk']
+                            )
+
+                            f.write(line)
+                        print("Logged to SD")
                     except Exception as e:
-                        print("SD writerror")
+                        print("SD write error:", e)   
 
                 else:
                     pycom.rgbled(0x800000)
                     sleep(0.1)
                     pycom.rgbled(0x000080)
 
+                
                 print("Sats:", gps_data['sats'])
                 print("Accel magnitude: {:.2f}".format(
-                    accel_data['magnitude']
-                ))
-
-                # SAVE TO CSV
-            try:        
-                with open(log_file, "a") as f:
-
-                    line = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
-                         time.time(),
-                        DEVICE_ID,
-                        1,                  #Label 1 = spoofed
-                        gps_data['lat'], 
-                        gps_data['lon'],
-                        gps_data['alt'],
-                        gps_data['speed'],
-                        gps_data['hdop'], 
-                        gps_data['sats'], 
-                        gps_data['course'], 
-                        gps_data['fix'],
-                               
-                               
-                        accel_data['accel_x'],
-                        accel_data['accel_y'],
-                        accel_data['accel_z'],
-                        accel_data['roll'],
-                        accel_data['pitch'],
-                        accel_data['magnitude'],
-                        accel_data['previous_mag'],
-                        accel_data['jerk']
-                    )
-
-                    f.write(line)
-                print("Logged to SD")
-            except Exception as e:
-                print("SD write error:", e)   
+                       accel_data['magnitude']
+                   ))
 
             else:
 
                 print("Waiting for GPS fix...")
                 print("Sats:", gps_data['sats'])
 
-                pycom.rgbled(0x808000)
-                sleep(1)
+                # Blinks blue while waiting for fix. 
                 pycom.rgbled(0x000080)
+                sleep(0.5)
+                pycom.rgbled(0x000000)
+                sleep(0.5)
 
             sleep(1)
 

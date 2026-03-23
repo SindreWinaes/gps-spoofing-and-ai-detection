@@ -30,6 +30,9 @@ class GPSSensor:
         
         # Quality indicator, should be >= 1
         self.fix_quality = 0
+
+        self.utc_time = None
+        self.utc_date = None
         
         
     def read(self):
@@ -63,7 +66,9 @@ class GPSSensor:
           'hdop' : self.hdop,
           'sats': self.num_sats,
           'course' : self.course,
-          'fix' : self.fix_quality
+          'fix' : self.fix_quality,
+          'utc_time' : self.utc_time,
+          'utc_date' : self.utc_date
           
         }
         
@@ -105,6 +110,10 @@ class GPSSensor:
         
         # Fileds 2-5: Latitude anf longtitude
         if len(p) >= 15:
+
+            if p[1]:            
+                self.utc_time = p[1]    # Format: HHMMSS.SSS        
+
             if p[2] and p[4]:
                 self.lat = self._conv(p[2], p[3])
                 self.lon = self._conv(p[4], p[5])
@@ -155,6 +164,9 @@ class GPSSensor:
             # Field 8: Course over ground    
             if p[8]:
                 self.course = float(p[8])
+
+            if p[9]:
+                self.utc_date = p[9]    # Format: DDMMYY
         
                 
                 
