@@ -49,11 +49,14 @@ class GPSSensor:
             
             # At 500 bytes we likely have one complete sentence
             if len (raw_data) > 500:
-                
-                # Decode raw bytes to ASCII string, ignoring invalid any invalid bytes
-                # Then parses all the data (NMEA sentences) recieved
-                self._parse_raw_data(raw_data.decode('ascii', 'ignore'))
+                try:
+                    # Decode raw bytes to ascii string
+                    decode = raw_data.decode('ascii', 'ignore')
+                    self._parse_raw_data(decoded)
+                except Exception:
+                    pass
                 break
+                    
             sleep(0.1)
             
     
