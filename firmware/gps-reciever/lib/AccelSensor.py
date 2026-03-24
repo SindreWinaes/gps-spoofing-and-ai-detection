@@ -1,4 +1,5 @@
 import math 
+import time
 
 class AccelSensor:
     
@@ -20,12 +21,16 @@ class AccelSensor:
         
         self.previous_mag = None
         
+        self.previous_time = None
+        
         self.jerk = 0
         
         
         
     
     def read(self):
+
+        current_time = time.time()
         
         self.accel_x, self.accel_y, self.accel_z = self.accel.acceleration()
         
@@ -35,12 +40,15 @@ class AccelSensor:
 
         self.magnitude = math.sqrt(self.accel_x**2 + self.accel_y**2 + self.accel_z**2)
         
-        if self.previous_mag is not None:
-            self.jerk = self.magnitude - self.previous_mag
+        if self.previous_mag is not None and self.previous_time is not None:
+            delta_time = current_time - self.previous_time
+            if delta_time > 0:
+                self.jerk = (self.magnitude - self.previous_mag) / delta_time
         else:
             self.jerk = 0
             
         self.previous_mag = self.magnitude 
+        self.previous_time = current_time
         
         return{
             'accel_x' : self.accel_x,

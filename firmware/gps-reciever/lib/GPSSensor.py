@@ -51,7 +51,7 @@ class GPSSensor:
             if len (raw_data) > 500:
                 try:
                     # Decode raw bytes to ascii string
-                    decode = raw_data.decode('ascii', 'ignore')
+                    decoded = raw_data.decode('ascii', 'ignore')
                     self._parse_raw_data(decoded)
                 except Exception:
                     pass
