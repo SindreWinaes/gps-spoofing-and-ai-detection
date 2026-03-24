@@ -11,8 +11,8 @@ UDP_PORT = 5000
 PACKET_GPS = 0
 PACKET_ACCEL = 1
 
-GPS_FORMAT = '<Bfffffifi'
-ACCEL_FORMAT = '<Bffffffff'
+GPS_FORMAT = 'Bfffffifi'
+ACCEL_FORMAT = 'Bffffffff'
 
 GPS_SIZE = struct.calcsize(GPS_FORMAT)
 ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
