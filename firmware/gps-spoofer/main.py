@@ -24,7 +24,7 @@ def is_valid_gps(gps_data):
         return False
     if (not 50.0 < gps_data['lat'] < 72.0): # Norway bounds
         return False
-    if not (4.0 < gps_data['lon'] < 32.0): # Norway bounds
+    if not (4.0 < gps_data['lonvi'] < 32.0): # Norway bounds
         return False
     return True
 

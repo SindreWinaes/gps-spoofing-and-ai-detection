@@ -18,9 +18,9 @@ LABEL = 0
 def is_valid_gps(gps_data):
     if gps_data['fix'] not in [1,2]:
         return False
-    if gps_data['hdop'] > 5.0:
+    if gps_data['hdop'] > 10.0:
         return False
-    if gps_data['sats'] < 4 or gps_data['sats'] > 32:
+    if gps_data['sats'] < 3 or gps_data['sats'] > 32:
         return False
     if (not 50.0 < gps_data['lat'] < 72.0): # Norway bounds
         return False
@@ -59,7 +59,7 @@ def main():
 
     # Write CSV header
     with open(log_file, "w") as f:
-        f.write("time,device_id,label,lat,lon,alt,speed,hdop,sats,course,fix,accel_x,accel_y,accel_z,roll,pitch,magnitude,previous_mag,jerk\n")
+        f.write("time,utc_time,device_id,label,lat,lon,alt,speed,hdop,sats,course,fix,accel_x,accel_y,accel_z,roll,pitch,magnitude,previous_mag,jerk\n")
     # --------------------------------
     
     # Led setup
@@ -123,8 +123,9 @@ def main():
             # -------- SAVE TO SD card --------
                 try:
                     with open(log_file, "a") as f:
-                       line = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+                       line = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
                             time.time(),
+                            gps_data['utc_time'],
                             DEVICE_ID,
                             LABEL,                  #Label 0 = legitimate
                             gps_data['lat'], 

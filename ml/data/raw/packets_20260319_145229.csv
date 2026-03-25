@@ -1,1 +1,0 @@
-timestamp,packet_num,gps_lat,gps_lon,gps_alt,gps_speed,gps_hdop,gps_sats,gps_course,gps_fix,accel_x,accel_y,accel_z,accel_roll,accel_pitch,accel_magnitude,accel_previous_mag,accel_jerk
