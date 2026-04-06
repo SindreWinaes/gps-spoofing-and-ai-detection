@@ -4,7 +4,7 @@ from time import sleep
 from pycoproc import Pycoproc
 from L76GNSS import L76GNSS
 from LIS2HH12 import LIS2HH12
-
+from calibration import AccelCalibration
 from GPSSensor import GPSSensor
 from AccelSensor import AccelSensor
 from LoRaTx import LoRaTx
@@ -12,8 +12,13 @@ from LoRaTx import LoRaTx
 from machine import SD
 import os
 
-DEVICE_ID = 'A'
 LABEL = 0
+
+CSV_HEADER = (
+    "Time, UTC Time, Label, Latitude, Longitude, Altitude, Speed, HDOP, Satelites, Course, Fix,"
+    " Roll Degrees, Pitch Degrees, Dynamic Magnitude, Jerk, Acceleration X, Acceleration Y, Acceleration Z," 
+    "Standard Deviation, Energy, Zero Crossings\n"
+)
 
 def is_valid_gps(gps_data):
     if gps_data['fix'] not in [1,2]:
@@ -28,6 +33,38 @@ def is_valid_gps(gps_data):
         return False
     return True
 
+# Maps to CSV collum
+def build_log_line(gps_data, accel_data, label):
+    
+    def safe(val):
+        if val is None:
+            return ''
+        return '{:.6f}'.format(val)
+    
+    return "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+        time.time(),
+        gps_data['utc_time'],
+        LABEL,                  #Label 0 = legitimate
+        gps_data['lat'], 
+        gps_data['lon'],
+        gps_data['alt'],
+        gps_data['speed'],                    
+        gps_data['hdop'],                     
+        gps_data['sats'],                     
+        gps_data['course'],                     
+        gps_data['fix'],
+        accel_data['roll'],
+        accel_data['pitch'],
+        safe(accel_data['dyn_mag']), 
+        safe(accel_data['jerk_mag']),
+        safe(accel_data['accel_x']),                    
+        safe(accel_data['accel_y']),                   
+        safe(accel_data['accel_z']),
+        safe(accel_data['accel_std']),                    
+        safe(accel_data['accel_energy']),                   
+        safe(accel_data['accel_zero_cross']),                                                                    
+    )
+
 
 def main():
     
@@ -37,8 +74,18 @@ def main():
     lis = LIS2HH12(py)
     
     gps_sensor = GPSSensor(l76)
-    accel_sensor = AccelSensor(lis)
     
+    # Calibrate Accelerometer at startup, device must sit still and bbe level.
+    pycom.heartbeat(False)
+    pycom.rgbled(0x808000) # Yellow = calibrating
+    cal = AccelCalibration()
+    cal.calibration(lis, num_samples=50)
+    pycom.rgbled(0x000000)
+    accel_sensor = AccelSensor(lis, calibration=cal)
+    
+
+    
+
     lora_tx = LoRaTx(tx_power=14, spreading_factor=10)
 
     # -------- SD CARD SETUP --------
@@ -55,17 +102,20 @@ def main():
         else:
             print("Waiting for GPS fix to create log file...")
             sleep(1)
+            pycom.rgbled(0x000080)
+            sleep(0.5)
+            pycom.rgbled(0x000000)
+            sleep(0.5)
+        
 
 
     # Write CSV header
     with open(log_file, "w") as f:
-        f.write("time,utc_time,device_id,label,lat,lon,alt,speed,hdop,sats,course,fix,accel_x,accel_y,accel_z,roll,pitch,magnitude,previous_mag,jerk\n")
+        f.write(CSV_HEADER)
     # --------------------------------
     
-    # Led setup
-    pycom.heartbeat(False)
-    pycom.rgbled(0x000080)    # Blue Led
-    
+   
+    pycom.rgbled(0x000080)
     print("System Startup - Device A")
 
     gps_count = 0
@@ -90,7 +140,7 @@ def main():
                     continue
 
                 # Send GPS packet
-                gps_ok = lora_tx.send_gps(gps_data)
+                gps_ok = lora_tx.send_gps(gps_data, LABEL)
                 if gps_ok:
                     gps_count += 1
                     print("GPS sent ({})".format(gps_count))
@@ -98,7 +148,7 @@ def main():
                     print("GPS send failed")
 
                 # Send acelerometer packet
-                accel_ok = lora_tx.send_accel(accel_data)
+                accel_ok = lora_tx.send_accel(accel_data, LABEL)
                 if accel_ok:
                     accel_count += 1
                     print("Accel sent ({})".format(accel_count))
@@ -116,35 +166,18 @@ def main():
                 print("GPS: {:.6f},{:.6f}".format(gps_data['lat'], gps_data['lon']))
                 print("Sats: {} Fix:{}".format(
                     gps_data['sats'], gps_data['fix']))
-                print("Accel magnitude: {:.2f}".format(
-                    accel_data['magnitude']))
+                
+                print("Dyn accel: {:.6f} Jerk: {:.6f}".format(
+                    accel_data['dyn_mag'], accel_data['jerk_mag']))
+                if accel_data['accel_std'] is not None:
+                    print("Std dev: {:.6f} Energy {:.6f}".format(
+                        accel_data['accel_std'], accel_data['accel_energy']))
                 
     
             # -------- SAVE TO SD card --------
                 try:
                     with open(log_file, "a") as f:
-                       line = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
-                            time.time(),
-                            gps_data['utc_time'],
-                            DEVICE_ID,
-                            LABEL,                  #Label 0 = legitimate
-                            gps_data['lat'], 
-                            gps_data['lon'],
-                            gps_data['alt'],
-                            gps_data['speed'],
-                            gps_data['hdop'], 
-                            gps_data['sats'], 
-                            gps_data['course'], 
-                            gps_data['fix'],
-                            accel_data['accel_x'],
-                            accel_data['accel_y'],
-                            accel_data['accel_z'],
-                            accel_data['roll'],
-                            accel_data['pitch'],
-                            accel_data['magnitude'],
-                            accel_data['previous_mag'],
-                            accel_data['jerk']
-                        )
+                       line = build_log_line(gps_data, accel_data, LABEL)
                        f.write(line)
                        print("Logged to SD")
                 except Exception as e:

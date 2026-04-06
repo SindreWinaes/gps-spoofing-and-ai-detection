@@ -3,16 +3,12 @@ import time
 from time import sleep
 from pycoproc import Pycoproc
 from L76GNSS import L76GNSS
-from LIS2HH12 import LIS2HH12
-
 from GPSSensor import GPSSensor
-from AccelSensor import AccelSensor
 from LoRaTx import LoRaTx
 
 from machine import SD
 import os
 
-DEVICE_ID = 'B'
 LABEL = 1
 
 def is_valid_gps(gps_data):
@@ -24,7 +20,7 @@ def is_valid_gps(gps_data):
         return False
     if (not 50.0 < gps_data['lat'] < 72.0): # Norway bounds
         return False
-    if not (4.0 < gps_data['lonvi'] < 32.0): # Norway bounds
+    if not (4.0 < gps_data['lon'] < 32.0): # Norway bounds
         return False
     return True
 
@@ -126,7 +122,7 @@ def run_record(gps_sensor, lora_tx):
                     f.write(line)
                 count += 1
                 
-                print("Recorded point {}: {:.6f}. {:.6f}".format(count, gps_data['lat'], gps_data['lon']))
+                print("Recorded point {}: {:.6f}, {:.6f}".format(count, gps_data['lat'], gps_data['lon']))
             except Exception as e:
                 print("Record write error:", e)
         else:
@@ -157,18 +153,26 @@ def run_replay(gps_sensor, lora_tx):
 
     packet_count = 0
     idx = 0
+    direction = 1
 
     while True:
         # Loop route continuesly
-        if idx >= len(route):
-            idx = 0
-            print("Route loop restarting...")
-        
-        gps_data = route[idx]
-        idx += 1
 
+        gps_data = route[idx]       # Read current point
+        idx += direction            # Then advance
+
+        # Check boundries and flip if needed. 
+        if idx >= len(route):
+            idx = len(route) - 2
+            direction = -1
+            print("Route reversing...")
+        elif idx < 0:
+            idx = 1
+            direction = 1
+            print("Route reversing")
+        
         # Send GPS packet over LoRa, no accel
-        success = lora_tx.send_gps(gps_data)
+        success = lora_tx.send_gps(gps_data, LABEL)
 
         if success:
             packet_count += 1
@@ -189,10 +193,8 @@ def main():
     # Init Pytrack
     py = Pycoproc(Pycoproc.PYTRACK)
     l76 = L76GNSS(py, timeout=60)
-    lis = LIS2HH12(py)
 
     gps_sensor = GPSSensor(l76)
-    accel_sensor = AccelSensor(lis)
 
     # Init LoRa
     lora_tx = LoRaTx(tx_power=14, spreading_factor=10)

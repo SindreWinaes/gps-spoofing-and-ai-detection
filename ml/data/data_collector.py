@@ -12,7 +12,7 @@ PACKET_GPS = 0
 PACKET_ACCEL = 1
 
 GPS_FORMAT = 'Bfffffifi'
-ACCEL_FORMAT = 'Bffffffff'
+ACCEL_FORMAT = 'Bffffffffff'
 
 GPS_SIZE = struct.calcsize(GPS_FORMAT)
 ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
@@ -22,36 +22,22 @@ DATA_DIR = "ml/data/raw"
 os.makedirs(DATA_DIR, exist_ok=True)  # Create directory if it doesn't exist
 
 timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-gps_filename = os.path.join(DATA_DIR, f"gps_{timestamp_str}.csv")
-accel_filename=  os.path.join(DATA_DIR, f"accel_{timestamp_str}.csv")
+log_filename = os.path.join(DATA_DIR, f"gps_log_{timestamp_str}.csv")
+
+CSV_HEADER = (
+    "Time, UTC Time, Device ID, Label, Latitude, Longitude, Altitude, Speed, HDOP, Satelites, Course, Fix,"
+    " Roll Degrees, Pitch Degrees, Dynamic Magnitude, Jerk, Acceleration X, Acceleration Y, Acceleration Z," 
+    "Standard Deviation, Energy, Zero Crossings\n"
+)
 
 
-gps_headers = [
-    'timestamp', 'packet_num', 
-    'lat', 'lon', 'alt', 'speed','hdop', 'sats', 'course', 'fix'
-    ]
+with open(log_filename, 'w', newline='') as f:
+    f.write(CSV_HEADER)
 
-accel_headers = [
-    'timestamp', 'packet_num', 'accel_x', 'accel_y', 'accel_z', 'roll', 'pitch', 'magnitude', 'previous_mag', 'jerk'
-]
-
-# Create csv file with header 
-# 
-
-with open(gps_filename, 'w', newline='') as f:
-    csv.writer(f).writerow(gps_headers)
-
-
-with open(accel_filename, 'w', newline='') as f:
-    csv.writer(f).writerow(accel_headers)
-
-print(f"GPS data - {gps_filename}")
-print(f"Accel data - {accel_filename}")
 
 # Creates UDP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
-
 
 print(f"Listening for packets on {UDP_IP}:{UDP_PORT}")
 print(f"Press Ctrl+C to stop\n")
@@ -60,7 +46,7 @@ total_packets = 0
 gps_count = 0
 accel_count = 0
 unkown_count = 0
-
+latest_accel = None
 
 try:
     while True:
@@ -70,8 +56,9 @@ try:
         if not data:
             continue
 
+
+        
         total_packets += 1
-        timestamp = datetime.now().isoformat()
         packet_type = data[0]
 
         if packet_type == PACKET_GPS and len(data) >= GPS_SIZE:
@@ -83,23 +70,45 @@ try:
                   f"alt:{alt:.1f} spd:{speed:.2f} hdop_{hdop:.2f}"
                   f"sats:{sats} fix:{fix}")
             
-            with open(gps_filename, 'a', newline='') as f:
-                csv.writer(f).writerow([
-                    timestamp, gps_count, lat, lon, alt, speed, hdop, sats, course, fix
-                ])
+            with open(log_filename, 'a', newline='') as f:
+                row_time = datetime.now().isoformat()
+
+                if latest_accel is not None:
+                    a = latest_accel
+
+
+                    csv.writer(f).writerow([
+                        row_time, '', '', '',
+                        lat, lon, alt, speed, hdop, sats, course, fix,
+                        a['roll'], a['pitch'], a['dyn_mag'], a['jerk_mag'],
+                        a['accel_x'], a['accel_y'], a['accel_z'],
+                        a['accel_std'], a['accel_energy'], a['accel_zero_cross']
+                    ])
+                else:
+                    # GPS arrived before any accel, write with empty accel collumns
+                    csv.writer(f).writerow([
+                        row_time, '', '', '',
+                        lat, lon, alt, speed, hdop, sats, course, fix,
+                        '', '', '', '', '', '', '', '', '', ''
+                    ])
+
+        
 
         elif packet_type == PACKET_ACCEL and len(data) >= ACCEL_SIZE:
             accel_count += 1
             fields = struct.unpack(ACCEL_FORMAT, data[:ACCEL_SIZE])
-            _, x, y, z, roll, pitch, mag, prev_mag, jerk = fields
+            _, roll, pitch, dyn_mag, jerk_mag, accel_x, accel_y, accel_z, accel_std, accel_energy, accel_zero_cross = fields
 
-            print(f"Acel #{accel_count:4d} | x:{x:.3f} y:{y:.3f} z:{z:.3f} | "
-                  f"mag:{mag:.3f} jerk:{jerk:.4f}")
-            
-            with open(accel_filename, 'a', newline='') as f:
-                csv.writer(f).writerow([
-                    timestamp, accel_count, x, y, z, roll, pitch, mag, prev_mag, jerk
-            ])
+            latest_accel = {
+                'roll': roll, 'pitch': pitch, 
+                'dyn_mag': dyn_mag, 'jerk_mag': jerk_mag,
+                'accel_x': accel_x, 'accel_y': accel_y, 'accel_z': accel_z,
+                'accel_std': accel_std, 'accel_energy':accel_energy, 'accel_zero_cross': accel_zero_cross
+            }
+
+
+            print(f"Acel #{accel_count:4d} | roll:{roll:.6f} pitch:{pitch:.6f} | "
+                    f"dyn:{dyn_mag:.6f} jerk:{jerk_mag:.6f}")
         
         else:
             unkown_count += 1

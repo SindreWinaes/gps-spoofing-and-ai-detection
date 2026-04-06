@@ -114,8 +114,9 @@ class GPSSensor:
         # Fileds 2-5: Latitude anf longtitude
         if len(p) >= 15:
 
-            if p[1]:            
-                self.utc_time = p[1]    # Format: HHMMSS.SSS        
+            if p[1] and len(p[1]) >= 9:            
+                self.utc_time = p[1]    # Format: HHMMSS.SSS  
+
 
             if p[2] and p[4]:
                 self.lat = self._conv(p[2], p[3])
@@ -168,7 +169,7 @@ class GPSSensor:
             if p[8]:
                 self.course = float(p[8])
 
-            if p[9]:
+            if p[9] and len(p[9]) >= 6:
                 self.utc_date = p[9]    # Format: DDMMYY
         
                 
