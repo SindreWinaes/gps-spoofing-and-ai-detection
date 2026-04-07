@@ -10,7 +10,7 @@ class LoRaTx:
     PACKET_ACCEL = 1
 
     GPS_FORMAT = 'BBfffffifi'
-    ACCEL_FORMAT = 'Bfffffffffff'
+    ACCEL_FORMAT = 'Bffffffffffff'
     
     def __init__(self, tx_power=14, spreading_factor=10):
         # Initialize Lora EU68
@@ -84,7 +84,7 @@ class LoRaTx:
                 accel_data['pitch'],
                 safe(accel_data['dyn_mag']),
                 safe(accel_data['jerk_mag']),
-                safe(accel_data['jerk_std'])
+                safe(accel_data['jerk_std']),
                 safe(accel_data['accel_x']),
                 safe(accel_data['accel_y']),
                 safe(accel_data['accel_z']),

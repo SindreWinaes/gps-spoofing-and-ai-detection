@@ -33,7 +33,7 @@ def read_mode():
         
         if content == 'record':
             return 'record', None
-        elif content.startswith('replay')
+        elif content.startswith('replay'):
             filename = content.split(':', 1)[1].strip()
             return 'replay', filename
         else:
@@ -106,10 +106,15 @@ def run_record(gps_sensor, lora_tx):
     while gps_data is None:
         gps_data = gps_sensor.read()
         if gps_data and gps_data['fix'] > 0 and gps_data['utc_date'] and gps_data['utc_time']:
+            pycom.rgbled(0x000080)
+            print("GPS Fix aquierd")
             break
-        print("Walking your route now. Ctrl+C to stop")
+        print("Waiting for GPS fix...")
         gps_data = None
-        sleep(1)
+        pycom.rgbled(0x000080)
+        sleep(0.5)
+        pycom.rgbled(0x000000)
+        sleep(0.5)
         
     # Create timestamped file
     timestamp = "{}_{:.0f}".format(gps_data['utc_date'], float(gps_data['utc_time']))
