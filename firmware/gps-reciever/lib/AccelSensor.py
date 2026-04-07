@@ -21,6 +21,7 @@ class AccelSensor:
         # Windowed stats for two channels
         self.stats_dyn = WindowStats(window_size=10)
         self.stats_jerk = WindowStats(window_size=10)
+        self.stats_signed = WindowStats(window_size=10)
 
 
     # Reads accelerometer and run through processing pipeline
@@ -46,7 +47,7 @@ class AccelSensor:
 
         
         # World frame transform, use gravity estimate for orientation
-        world_result = self.world_tf.process(cal_x, cal_y, cal_z, grav_x, grav_y, grav_z)
+        world_result = self.world_tf.process(dyn_x, dyn_y, dyn_z, grav_x, grav_y, grav_z)
         world_x, world_y, world_z = world_result['world_accel']
         roll_deg = world_result['roll_deg']
         pitch_deg = world_result['pitch_deg']
@@ -61,22 +62,25 @@ class AccelSensor:
 
         # Windowed statistics
         self.stats_dyn.add_sample(dyn_mag)
+        self.stats_signed.add_sample(dyn_z)
         self.stats_jerk.add_sample(jerk_mag)
 
         dyn_stats = self.stats_dyn.compute()    # None until window is full
         jerk_stats = self.stats_jerk.compute()  # None unitl window is full
+        signed_stats = self.stats_signed.compute()
 
         return{
             'roll': roll_deg,
             'pitch': pitch_deg,
             'dyn_mag': dyn_mag,
             'jerk_mag': jerk_mag,
+            'jerk_std': jerk_stats['std_dev'] if jerk_stats else None,
             'accel_x': world_x,
             'accel_y': world_y, 
             'accel_z': world_z,
             'accel_std': dyn_stats['std_dev'] if dyn_stats else None,
             'accel_energy': dyn_stats['energy'] if dyn_stats else None,
-            'accel_zero_cross': dyn_stats['zero_crossings'] if dyn_stats else None,
+            'accel_zero_cross': signed_stats['zero_crossings'] if signed_stats else None,
         }
 
 

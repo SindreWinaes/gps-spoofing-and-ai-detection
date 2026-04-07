@@ -16,7 +16,7 @@ LABEL = 0
 
 CSV_HEADER = (
     "Time, UTC Time, Label, Latitude, Longitude, Altitude, Speed, HDOP, Satelites, Course, Fix,"
-    " Roll Degrees, Pitch Degrees, Dynamic Magnitude, Jerk, Acceleration X, Acceleration Y, Acceleration Z," 
+    " Roll Degrees, Pitch Degrees, Dynamic Magnitude, Jerk, Jerk Std, Acceleration X, Acceleration Y, Acceleration Z," 
     "Standard Deviation, Energy, Zero Crossings\n"
 )
 
@@ -41,7 +41,7 @@ def build_log_line(gps_data, accel_data, label):
             return ''
         return '{:.6f}'.format(val)
     
-    return "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+    return "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
         time.time(),
         gps_data['utc_time'],
         LABEL,                  #Label 0 = legitimate
@@ -57,6 +57,7 @@ def build_log_line(gps_data, accel_data, label):
         accel_data['pitch'],
         safe(accel_data['dyn_mag']), 
         safe(accel_data['jerk_mag']),
+        safe(accel_data['jerk_std']),
         safe(accel_data['accel_x']),                    
         safe(accel_data['accel_y']),                   
         safe(accel_data['accel_z']),
@@ -148,7 +149,7 @@ def main():
                     print("GPS send failed")
 
                 # Send acelerometer packet
-                accel_ok = lora_tx.send_accel(accel_data, LABEL)
+                accel_ok = lora_tx.send_accel(accel_data)
                 if accel_ok:
                     accel_count += 1
                     print("Accel sent ({})".format(accel_count))
