@@ -9,8 +9,8 @@ class LoRaTx:
     PACKET_GPS = 0
     PACKET_ACCEL = 1
 
-    GPS_FORMAT = 'Bfffffifi'
-    ACCEL_FORMAT = 'Bffffffff'
+    GPS_FORMAT = 'BBfffffifi'
+    ACCEL_FORMAT = 'Bfffffffffff'
     
     def __init__(self, tx_power=14, spreading_factor=10):
         # Initialize Lora EU68
@@ -49,12 +49,13 @@ class LoRaTx:
             print("LoRa send faiel: {}".format(e))
             return False
         
-    def send_gps(self, gps_data):
+    def send_gps(self, gps_data, label):
         #Pack and send GPS packet
         try:
             packed = struct.pack(
                 self.GPS_FORMAT,
                 self.PACKET_GPS,
+                label,
                 gps_data['lat'],
                 gps_data['lon'],
                 gps_data['alt'],
@@ -73,17 +74,23 @@ class LoRaTx:
     def send_accel(self, accel_data):
         # Pack and send accelerometer packet
         try:
+            def safe(val):
+                return val if val is not None else 0.0
+            
             packed = struct.pack(
                 self.ACCEL_FORMAT,
                 self.PACKET_ACCEL,
-                accel_data['accel_x'],
-                accel_data['accel_y'],
-                accel_data['accel_z'],
                 accel_data['roll'],
                 accel_data['pitch'],
-                accel_data['magnitude'],
-                accel_data['previous_mag'],
-                accel_data['jerk']
+                safe(accel_data['dyn_mag']),
+                safe(accel_data['jerk_mag']),
+                safe(accel_data['jerk_std'])
+                safe(accel_data['accel_x']),
+                safe(accel_data['accel_y']),
+                safe(accel_data['accel_z']),
+                safe(accel_data['accel_std']),
+                safe(accel_data['accel_energy']),
+                safe(accel_data['accel_zero_cross'])
             )
             return self._send_packet(packed)
         

@@ -28,25 +28,30 @@ def is_valid_gps(gps_data):
 def read_mode():
     try:
         f = open('/sd/mode.txt', 'r')
-        mode = f.read().strip()
+        content = f.read().strip()
         f.close()
         
-        if mode in ['record', 'replay']:
-            return mode
+        if content == 'record':
+            return 'record', None
+        elif content.startswith('replay')
+            filename = content.split(':', 1)[1].strip()
+            return 'replay', filename
         else:
-            print("Invalid mode '{}' in mode.txt, default to record".format(mode))
-            return 'record'
+            print("Invalid mode.txt, defaulting to record")        
+            return 'record', None
+        
     except Exception:
         print("No mode.txt found, defaulting to record")
-        return 'record'
+        return 'record', None
+
+
     
-    
-def load_replay_route():
+def load_replay_route(filename):
     # Load the recorded GPS route from /sd/route.csv into memory
 
     route = []
     try:
-        f = open('/sd/route.csv', 'r')
+        f = open('/sd/{}'.format(filename), 'r')
         lines = f.read().split('\n')
         f.close()
 
@@ -58,15 +63,17 @@ def load_replay_route():
             
             try:
                 parts = line.split(',')
-                lat = float(parts[0])
-                lon = float(parts[1])
-                alt = float(parts[2])
-                speed = float(parts[3])
-                hdop = float(parts[4])
-                sats = int(parts[5])
-                course = float(parts[6])
-                fix = int(parts[7])
+                utc_time = parts[0]
+                lat = float(parts[1])
+                lon = float(parts[2])
+                alt = float(parts[3])
+                speed = float(parts[4])
+                hdop = float(parts[5])
+                sats = int(parts[6])
+                course = float(parts[7])
+                fix = int(parts[8])
                 route.append({
+                    'utc_time': utc_time,
                     'lat' : lat,
                     'lon' : lon,
                     'alt' : alt,
@@ -92,15 +99,28 @@ def run_record(gps_sensor, lora_tx):
     Record mode, saves real GPS to /sd/route.csv.
     No LoRa transmission. LED = green while recording. 
     """
-
     print("Mode: RECORD")
-    print("Walking your route now. Ctrl+C to stop")
+    
+    # Wait for fix before creating file
+    gps_data = None
+    while gps_data is None:
+        gps_data = gps_sensor.read()
+        if gps_data and gps_data['fix'] > 0 and gps_data['utc_date'] and gps_data['utc_time']:
+            break
+        print("Walking your route now. Ctrl+C to stop")
+        gps_data = None
+        sleep(1)
+        
+    # Create timestamped file
+    timestamp = "{}_{:.0f}".format(gps_data['utc_date'], float(gps_data['utc_time']))
+    route_file = "/sd/route_{}.csv".format(timestamp)
+    print("Route file: " + route_file)
 
-    pycom.rgbled(0x008000)      # Green = recording
-
-    route_file = '/sd/route.csv'
     with open(route_file, 'w') as f:
-        f.write("lat,lon,alt,speed,hdop,sats,course,fix\n")
+        f.write("utc_time,lat,lon,alt,speed,hdop,sats,course,fix\n")
+        
+    pycom.rgbled(0x008000)      # Green = recording    
+        
     
     count = 0
     while True:
@@ -109,7 +129,8 @@ def run_record(gps_sensor, lora_tx):
         if gps_data and gps_data['fix'] > 0 and is_valid_gps(gps_data):
             try:
                 with open(route_file, 'a') as f:
-                    line = "{},{},{},{},{},{},{},{}\n".format(
+                    line = "{},{},{},{},{},{},{},{},{}\n".format(
+                        gps_data['utc_time'],
                         gps_data['lat'],
                         gps_data['lon'],
                         gps_data['alt'],
@@ -134,7 +155,7 @@ def run_record(gps_sensor, lora_tx):
             continue
         sleep(1)
 
-def run_replay(gps_sensor, lora_tx):
+def run_replay(gps_sensor, lora_tx, filename):
     """ 
     Replay mode, loop through recorded route and send GPS-only packets.
     No accelerometer packets sent. LED = red while replaying
@@ -142,7 +163,7 @@ def run_replay(gps_sensor, lora_tx):
 
     print("MODE: REPLAY")
 
-    route = load_replay_route()
+    route = load_replay_route(filename)
     if not route:
         print("No route loaded, switch record mode first.")
         return
@@ -160,7 +181,7 @@ def run_replay(gps_sensor, lora_tx):
 
         gps_data = route[idx]       # Read current point
         idx += direction            # Then advance
-
+        
         # Check boundries and flip if needed. 
         if idx >= len(route):
             idx = len(route) - 2
@@ -210,14 +231,14 @@ def main():
     print("Device B starting...")
 
     # Read mode from SD card
-    mode = read_mode()
+    mode, filename = read_mode()
     print("Mode: " + mode)
 
     try:
         if mode == 'record':
             run_record(gps_sensor, lora_tx)
         elif mode == 'replay':
-            run_replay(gps_sensor, lora_tx)
+            run_replay(gps_sensor, lora_tx, filename)
     
     except KeyboardInterrupt:
         print("\nStopping...")
