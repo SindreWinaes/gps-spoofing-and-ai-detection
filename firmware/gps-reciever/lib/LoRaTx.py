@@ -10,7 +10,7 @@ class LoRaTx:
     PACKET_ACCEL = 1
 
     GPS_FORMAT = 'BBfffffifi'
-    ACCEL_FORMAT = 'Bffffffffffff'
+    ACCEL_FORMAT = 'Bfffffffffff'
     
     def __init__(self, tx_power=14, spreading_factor=10):
         # Initialize Lora EU68

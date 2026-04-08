@@ -14,9 +14,9 @@ LABEL = 1
 def is_valid_gps(gps_data):
     if gps_data['fix'] not in [1,2]:
         return False
-    if gps_data['hdop'] > 5.0:
+    if gps_data['hdop'] > 10.0:
         return False
-    if gps_data['sats'] < 4 or gps_data['sats'] > 32:
+    if gps_data['sats'] < 3 or gps_data['sats'] > 24:
         return False
     if (not 50.0 < gps_data['lat'] < 72.0): # Norway bounds
         return False
@@ -24,43 +24,41 @@ def is_valid_gps(gps_data):
         return False
     return True
 
-# Read mode, returs 'record' or 'replay'
 def read_mode():
+    # Read mode.txt from SD card
+    # Format: 'record' or 'replay:filename.csv'
     try:
         f = open('/sd/mode.txt', 'r')
         content = f.read().strip()
         f.close()
-        
+
         if content == 'record':
             return 'record', None
-        elif content.startswith('replay'):
+        elif content.startswith('replay:'):
             filename = content.split(':', 1)[1].strip()
             return 'replay', filename
         else:
-            print("Invalid mode.txt, defaulting to record")        
+            print("Invalid mode.txt, defaulting to record")
             return 'record', None
-        
+
     except Exception:
         print("No mode.txt found, defaulting to record")
         return 'record', None
 
 
-    
 def load_replay_route(filename):
-    # Load the recorded GPS route from /sd/route.csv into memory
-
+    # Load recorded GPS route from SD card into memory
     route = []
     try:
         f = open('/sd/{}'.format(filename), 'r')
         lines = f.read().split('\n')
         f.close()
 
-        # Skip header
         for line in lines[1:]:
             line = line.strip()
             if not line:
                 continue
-            
+
             try:
                 parts = line.split(',')
                 utc_time = parts[0]
@@ -74,14 +72,14 @@ def load_replay_route(filename):
                 fix = int(parts[8])
                 route.append({
                     'utc_time': utc_time,
-                    'lat' : lat,
-                    'lon' : lon,
-                    'alt' : alt,
-                    'speed' : speed,
-                    'hdop' : hdop,
-                    'sats' : sats,
-                    'course' : course,
-                    'fix' : fix
+                    'lat': lat,
+                    'lon': lon,
+                    'alt': alt,
+                    'speed': speed,
+                    'hdop': hdop,
+                    'sats': sats,
+                    'course': course,
+                    'fix': fix
                 })
             except Exception as e:
                 print("Skipping bad route line:", e)
@@ -89,49 +87,80 @@ def load_replay_route(filename):
 
         print("Loaded {} route points".format(len(route)))
         return route
-    
+
     except Exception as e:
         print("Failed to load route:", e)
-        return[]
-    
+        return []
+
+
+def wait_for_fix(gps_sensor):
+    """
+    Wait for GPS fix. Reads as fast as possible without extra sleeps.
+    The GPSSensor.read() already takes ~1s internally (accumulates 500 bytes),
+    so no additional delay needed between attempts.
+
+    LED: blinks blue while waiting
+    """
+    print("Waiting for GPS fix...")
+    blink_state = False
+
+    while True:
+        gps_data = gps_sensor.read()
+
+        if gps_data and gps_data['fix'] > 0 and gps_data['utc_date'] and gps_data['utc_time']:
+            print("GPS Fix acquired (sats={}, hdop={})".format(
+                gps_data['sats'], gps_data['hdop']))
+            pycom.rgbled(0x000080)  # Solid blue
+            return gps_data
+
+        # Blink blue LED - toggle each read cycle (~1s from internal read timing)
+        blink_state = not blink_state
+        pycom.rgbled(0x000080 if blink_state else 0x000000)
+
+
 def run_record(gps_sensor, lora_tx):
     """
-    Record mode, saves real GPS to /sd/route.csv.
-    No LoRa transmission. LED = green while recording. 
+    Record mode - saves real GPS to timestamped CSV on SD card.
+    No LoRa transmission.
+
+    LED states:
+        Blink blue   = waiting for GPS fix
+        Solid blue   = recording good data
     """
     print("Mode: RECORD")
-    
-    # Wait for fix before creating file
-    gps_data = None
-    while gps_data is None:
-        gps_data = gps_sensor.read()
-        if gps_data and gps_data['fix'] > 0 and gps_data['utc_date'] and gps_data['utc_time']:
-            pycom.rgbled(0x000080)
-            print("GPS Fix aquierd")
-            break
-        print("Waiting for GPS fix...")
-        gps_data = None
-        pycom.rgbled(0x000080)
-        sleep(0.5)
-        pycom.rgbled(0x000000)
-        sleep(0.5)
-        
-    # Create timestamped file
+
+    # Wait for GPS fix before creating file
+    gps_data = wait_for_fix(gps_sensor)
+
+    # Create timestamped route file
     timestamp = "{}_{:.0f}".format(gps_data['utc_date'], float(gps_data['utc_time']))
     route_file = "/sd/route_{}.csv".format(timestamp)
     print("Route file: " + route_file)
 
     with open(route_file, 'w') as f:
         f.write("utc_time,lat,lon,alt,speed,hdop,sats,course,fix\n")
-        
-    pycom.rgbled(0x008000)      # Green = recording    
-        
-    
+
+    pycom.rgbled(0x000080)  # Solid blue = recording active
+    print("Recording started. Ctrl+C to stop")
+
     count = 0
+    last_recorded_utc = None
+
     while True:
         gps_data = gps_sensor.read()
 
-        if gps_data and gps_data['fix'] > 0 and is_valid_gps(gps_data):
+        # Skip if no new GPS fix from the parser
+        if not gps_data.get('new_fix', False):
+            sleep(1)
+            continue
+
+        # Skip if we already recorded this UTC timestamp
+        if gps_data['utc_time'] == last_recorded_utc:
+            sleep(1)
+            continue
+
+        if gps_data['fix'] > 0 and is_valid_gps(gps_data):
+            pycom.rgbled(0x000080)  # Solid blue
             try:
                 with open(route_file, 'a') as f:
                     line = "{},{},{},{},{},{},{},{},{}\n".format(
@@ -146,48 +175,55 @@ def run_record(gps_sensor, lora_tx):
                         gps_data['fix']
                     )
                     f.write(line)
+                last_recorded_utc = gps_data['utc_time']
                 count += 1
-                
-                print("Recorded point {}: {:.6f}, {:.6f}".format(count, gps_data['lat'], gps_data['lon']))
+                print("Recorded point {}: {:.6f}, {:.6f}".format(
+                    count, gps_data['lat'], gps_data['lon']))
             except Exception as e:
                 print("Record write error:", e)
         else:
-            print("waiting for GPS fix...")
-            pycom.rgbled(0x000080)
-            sleep(0.5)
-            pycom.rgbled(0x000000)
-            sleep(0.5)
-            continue
+            if gps_data is None or gps_data['fix'] < 1:
+                print("No GPS fix")
+                pycom.rgbled(0x000080)
+                sleep(0.5)
+                pycom.rgbled(0x000000)
+                sleep(0.5)
+            else:
+                print("GPS data filtered (HDOP={}, sats={})".format(
+                    gps_data.get('hdop', '?'), gps_data.get('sats', '?')))
+
         sleep(1)
 
-def run_replay(gps_sensor, lora_tx, filename):
-    """ 
-    Replay mode, loop through recorded route and send GPS-only packets.
-    No accelerometer packets sent. LED = red while replaying
-    """
 
+def run_replay(gps_sensor, lora_tx, filename):
+    """
+    Replay mode - loops through recorded route sending GPS-only packets.
+    No accelerometer packets sent.
+
+    LED states:
+        Solid red  = actively replaying/spoofing
+        Blink red  = send failure
+    """
     print("MODE: REPLAY")
 
     route = load_replay_route(filename)
     if not route:
-        print("No route loaded, switch record mode first.")
+        print("No route loaded. Check filename in mode.txt.")
         return
-    
-    print("Replayiong {} points on loop. Ctrl+C to stop".format(len(route)))
-    pycom.rgbled(0x800000)      # RED = Replay spoofing
 
+    print("Replaying {} points on loop. Ctrl+C to stop".format(len(route)))
+
+    pycom.rgbled(0x800000)  # Solid red = spoofing active
 
     packet_count = 0
     idx = 0
     direction = 1
 
     while True:
-        # Loop route continuesly
+        gps_data = route[idx]
+        idx += direction
 
-        gps_data = route[idx]       # Read current point
-        idx += direction            # Then advance
-        
-        # Check boundries and flip if needed. 
+        # Bounce at boundaries
         if idx >= len(route):
             idx = len(route) - 2
             direction = -1
@@ -195,21 +231,24 @@ def run_replay(gps_sensor, lora_tx, filename):
         elif idx < 0:
             idx = 1
             direction = 1
-            print("Route reversing")
-        
-        # Send GPS packet over LoRa, no accel
+            print("Route reversing...")
+
         success = lora_tx.send_gps(gps_data, LABEL)
 
         if success:
             packet_count += 1
-            print("Replayed point  {}/{} - {:.6f}, {:.6f}".format(idx, len(route), gps_data['lat'], gps_data['lon']))
-
+            pycom.rgbled(0x800000)  # Solid red = sending
+            print("Replayed point {}/{} - {:.6f}, {:.6f}".format(
+                idx, len(route), gps_data['lat'], gps_data['lon']))
         else:
-            print("Send Failed")
-        
+            print("Send failed")
+            pycom.rgbled(0x000000)
+            sleep(0.1)
+            pycom.rgbled(0x800000)
+
         if packet_count > 0 and packet_count % 10 == 0:
             stats = lora_tx.get_stats()
-            print("Stats", stats)
+            print("Stats:", stats)
 
         sleep(1)
 
@@ -219,7 +258,6 @@ def main():
     # Init Pytrack
     py = Pycoproc(Pycoproc.PYTRACK)
     l76 = L76GNSS(py, timeout=60)
-
     gps_sensor = GPSSensor(l76)
 
     # Init LoRa
@@ -229,13 +267,11 @@ def main():
     sd = SD()
     os.mount(sd, '/sd')
 
-    # LED setup
     pycom.heartbeat(False)
-    pycom.rgbled(0x000080)
+    pycom.rgbled(0x000080)  # Blue = booting
 
     print("Device B starting...")
 
-    # Read mode from SD card
     mode, filename = read_mode()
     print("Mode: " + mode)
 
@@ -244,15 +280,16 @@ def main():
             run_record(gps_sensor, lora_tx)
         elif mode == 'replay':
             run_replay(gps_sensor, lora_tx, filename)
-    
+
     except KeyboardInterrupt:
         print("\nStopping...")
         stats = lora_tx.get_stats()
-        print("Final stats: ", stats)
+        print("Final stats:", stats)
+        pycom.rgbled(0x000000)  # Turn off LED on clean exit
 
     except Exception as e:
-        print("Error: ", e)
-        pycom.rgbled(0xFF0000)
+        print("Error:", e)
+        pycom.rgbled(0xFF0000)  # Red = unhandled error
 
 
 if __name__ == '__main__':

@@ -7,11 +7,11 @@ from time import sleep
 PACKET_GPS = 0
 PACKET_ACCEL = 1
 
-GPS_FORMAT = 'Bfffffifi'
+GPS_FORMAT = 'BBfffffifi'
 
 GPS_SIZE = struct.calcsize(GPS_FORMAT)
 
-ACCEL_FORMAT = 'Bffffffff'
+ACCEL_FORMAT = 'Bffffffffff'
 ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
 
 # Initialize WiFi AP
@@ -44,7 +44,7 @@ print("Waiting for packets...")
 
 while True:
     try: 
-        data = s.recv
+        data = s.recv(256)
         if data:
             udp_socket.sendto(data, (client_IP, client_Port))
             print("Foorwarded {} bytes".format(len(data)))
