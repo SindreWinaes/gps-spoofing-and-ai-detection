@@ -250,7 +250,7 @@ def run_replay(gps_sensor, lora_tx, filename):
             stats = lora_tx.get_stats()
             print("Stats:", stats)
 
-        sleep(1)
+        sleep(2)
 
 
 def main():
