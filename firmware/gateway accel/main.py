@@ -14,14 +14,16 @@ GPS_SIZE = struct.calcsize(GPS_FORMAT)
 ACCEL_FORMAT = 'Bffffffffff'
 ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
 
-# Initialize WiFi AP
-wlan = WLAN(mode=WLAN.AP, ssid='PygateLora', auth=(WLAN.WPA2, 'pygatepw123'))
-print("WiFi AP started: SSID=PygateLora, Password=pygatepw123")
-print("Pygate IP:", wlan.ifconfig())
+# Connect to GPS Gateway as a client
+wlan = WLAN(mode=WLAN.STA)
+wlan.connect('PygateLora', auth=(WLAN.WPA2, 'pygatepw123'))
+while not wlan.isconnected():
+    sleep(0.5)
+print("Connected IP:", wlan.ifconfig())
 
 # Initialize LoRa receiver
 lora = LoRa(mode=LoRa.LORA, region=LoRa.EU868)
-lora.frequency(868100000)
+lora.frequency(868300000)
 lora.bandwidth(LoRa.BW_125KHZ)
 lora.sf(10)
 
@@ -32,9 +34,10 @@ s = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Client IP and Port
-client_IP = '192.168.4.2'
-client_Port = 5000
+client_IP = '192.168.4.10'
+client_Port = 5001
 
+print("Gateway Accelerometer")
 print("LoRa receiver configured:")
 print("  Frequency: {} Hz".format(lora.frequency()))
 print("  Bandwidth: {}".format(lora.bandwidth()))
