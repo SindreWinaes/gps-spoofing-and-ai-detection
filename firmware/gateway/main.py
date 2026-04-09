@@ -1,7 +1,18 @@
 from network import LoRa, WLAN
 import socket
-import ubinascii
+import struct
 from time import sleep
+
+
+PACKET_GPS = 0
+PACKET_ACCEL = 1
+
+GPS_FORMAT = 'BBfffffifi'
+
+GPS_SIZE = struct.calcsize(GPS_FORMAT)
+
+ACCEL_FORMAT = 'Bffffffffff'
+ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
 
 # Initialize WiFi AP
 wlan = WLAN(mode=WLAN.AP, ssid='PygateLora', auth=(WLAN.WPA2, 'pygatepw123'))
@@ -31,18 +42,12 @@ print("  SF: {}".format(lora.sf()))
 print(" Forwarding to {}:{}".format(client_IP, client_Port))
 print("Waiting for packets...")
 
-packet_count = 0
-
 while True:
-    # Try blocking receive with timeout
-    s.settimeout(1.0)  # 1 second timeout
-    try:
+    try: 
         data = s.recv(256)
         if data:
-            packet_count += 1
-            print("Packet {} received! Length: {} bytes".format(packet_count, len(data)))
-            print("Raw hex:", ubinascii.hexlify(data))
-            
             udp_socket.sendto(data, (client_IP, client_Port))
+            print("Foorwarded {} bytes".format(len(data)))
+    
     except:
-        pass  # Timeout, keep waiting
+        pass

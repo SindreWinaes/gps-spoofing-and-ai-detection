@@ -9,21 +9,20 @@ class GPSSensor:
         self.gps = gps
         
         # GPS position in decimal degrees
-        
         self.lat = None     # Positive/Negative = North/South
         self.lon = None     # Positive/Negative = East/West
         
         # Altitude - meter above sea level
         self.alt = None
         
-        # GPS reported speed, compares postiions over time, not from actual velocity. Can have noise and show phantom mmovement.
+        # GPS reported speed, compares positions over time, not from actual velocity. Can have noise and show phantom movement.
         self.speed = None
         
-        # Horizontal Dilution of Precission - Measure of GPS accuracy based on satelite geometry
+        # Horizontal Dilution of Precision - Measure of GPS accuracy based on satellite geometry
         # Lower value = Better Accuracy
         self.hdop = None
         
-        # Number of Satelites
+        # Number of Satellites
         self.num_sats = 0
         # Course while moving        
         self.course = None
@@ -33,11 +32,15 @@ class GPSSensor:
 
         self.utc_time = None
         self.utc_date = None
+
+        # Track whether this read produced new data
+        self._got_new_fix = False
         
         
     def read(self):
         # byte string to store raw nmea (National Marine Electronics Association) data
         raw_data = b''
+        self._got_new_fix = False
         
         start = time.time()
         
@@ -48,8 +51,9 @@ class GPSSensor:
             
             
             # At 500 bytes we likely have one complete sentence
-            if len (raw_data) > 500:
+            if len(raw_data) > 500:
                 try:
+                    # Decode raw bytes to ascii string
                     decoded = raw_data.decode('ascii', 'ignore')
                     self._parse_raw_data(decoded)
                 except Exception:
@@ -59,8 +63,8 @@ class GPSSensor:
             sleep(0.1)
             
     
-        # Return all parsed fields as a dictionay    
-        return{
+        # Return all parsed fields as a dictionary    
+        return {
           'lat' : self.lat,
           'lon' : self.lon,
           'alt' : self.alt,
@@ -70,13 +74,23 @@ class GPSSensor:
           'course' : self.course,
           'fix' : self.fix_quality,
           'utc_time' : self.utc_time,
-          'utc_date' : self.utc_date
-          
+          'utc_date' : self.utc_date,
+          'new_fix' : self._got_new_fix
         }
-        
-        
+
+
     def _parse_raw_data(self, data):
         for line in data.replace('\r', '').split('\n'):
+            # Only parse complete NMEA sentences starting with '$'
+            # This prevents parsing fragments from mid-sentence
+            if not line.startswith('$'):
+                continue
+
+            # Strip checksum (everything after '*') to prevent
+            # the last field from having junk appended
+            if '*' in line:
+                line = line[:line.index('*')]
+
             try:
                 if 'GGA' in line:
                     self._parse_gga(line)
@@ -110,11 +124,14 @@ class GPSSensor:
         # Splits the sentence into fields separated by comma
         p = line.split(',')
         
-        # Fileds 2-5: Latitude anf longtitude
         if len(p) >= 15:
 
-            if p[1]:            
-                self.utc_time = p[1]    # Format: HHMMSS.SSS        
+            if p[1] and len(p[1]) >= 9:
+                # Check if this is actually a new fix by comparing UTC time
+                old_time = self.utc_time
+                self.utc_time = p[1]    # Format: HHMMSS.SSS
+                if self.utc_time != old_time:
+                    self._got_new_fix = True
 
             if p[2] and p[4]:
                 self.lat = self._conv(p[2], p[3])
@@ -124,14 +141,19 @@ class GPSSensor:
             if p[6]:
                 self.fix_quality = int(p[6])
                 
-            # field 7: Number of satelites used to calculate its positions
+            # field 7: Number of satellites used to calculate its position
+            # Sanity check: no GPS constellation has more than 24 visible sats
             if p[7]:
-                self.num_sats = int(p[7])
+                sats = int(p[7])
+                if 0 <= sats <= 24:
+                    self.num_sats = sats
             
-            # fieled 8: Horizontal Dilutioon of Precission
-            # Measures how the satelites geometry affects postition
+            # field 8: Horizontal Dilution of Precision
+            # Sanity check: valid HDOP range is roughly 0.5 to 50
             if p[8]:
-                self.hdop = float(p[8])
+                hdop = float(p[8])
+                if 0.0 < hdop < 50.0:
+                    self.hdop = hdop
                 
             # Field 9: Altitude above sea level
             if p[9]:
@@ -141,7 +163,7 @@ class GPSSensor:
     def _parse_rmc(self, line):
         
         '''
-        Parse RMC - Recomended Minimum Navigation data
+        Parse RMC - Recommended Minimum Navigation data
         
         Key fields:
         [0] = Sentence ID ($GPRMC or $GNRMC)
@@ -156,18 +178,22 @@ class GPSSensor:
         
         p = line.split(',')
         
-        
-        if len(p) >= 8:
+        if len(p) >= 10:
             # Field 7: Speed over ground in knots
+            # Sanity check: reject obviously wrong speeds (>500 km/h)
             if p[7]:
-                # Convert knots to km/h 
-                self.speed = float(p[7]) * 1.852
+                speed = float(p[7]) * 1.852
+                if 0.0 <= speed < 500.0:
+                    self.speed = speed
                 
-            # Field 8: Course over ground    
+            # Field 8: Course over ground
+            # Sanity check: course must be 0-360 degrees
             if p[8]:
-                self.course = float(p[8])
+                course = float(p[8])
+                if 0.0 <= course <= 360.0:
+                    self.course = course
 
-            if p[9]:
+            if p[9] and len(p[9]) >= 6:
                 self.utc_date = p[9]    # Format: DDMMYY
         
                 
@@ -193,11 +219,12 @@ class GPSSensor:
         p = line.split(',')
         
         if len(p) >= 8:
-            
-            
             # Field 7: Speed over ground in km/h (no conversion needed)
+            # Sanity check: reject obviously wrong speeds
             if p[7]:
-                self.speed = float(p[7])
+                speed = float(p[7])
+                if 0.0 <= speed < 500.0:
+                    self.speed = speed
                 
         
                 
@@ -216,6 +243,3 @@ class GPSSensor:
             r *= -1
             
         return r
-    
-    
-            

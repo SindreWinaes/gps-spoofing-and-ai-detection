@@ -1,0 +1,62 @@
+'''
+This class aims to seperate Gravity from Dynamic Acceleration
+'''
+
+
+import math
+
+class GravitySeperator:
+    
+    # Uses an exponential moving average low-pass filter to estimate the gravity vector,
+    # then subtracts it to get dynamic acceleration
+
+    def __init__(self, alpha=0.2):
+
+        '''
+        Parameters:
+            alpha: Filter smoothing factor (0.0 to 1.0)
+                   Lower = smoother gravity estimate, slower response to tilt
+                   Higher = noisier gravity, faster response to tilt
+ 
+        '''
+
+        self.alpha = alpha
+
+        self.grav_x = 0.0
+        self.grav_y = 0.0
+        self.grav_z = 1.0
+
+        self.is_initialized = False
+
+
+    def initialize(self, ax, ay, az):
+        
+        self.grav_x = ax
+        self.grav_y = ay
+        self.grav_z = az
+
+        self.is_initialized = True
+
+
+    def update(self, cal_x, cal_y, cal_z):
+
+        if not self.is_initialized:
+            self.initialize(cal_x, cal_y, cal_z)
+
+
+        self.grav_x = self.alpha * cal_x + (1.0 - self.alpha) * self.grav_x
+        self.grav_y = self.alpha * cal_y + (1.0 - self.alpha) * self.grav_y
+        self.grav_z = self.alpha * cal_z + (1.0 - self.alpha) * self.grav_z
+
+        dyn_x = cal_x - self.grav_x
+        dyn_y = cal_y - self.grav_y
+        dyn_z = cal_z - self.grav_z
+
+        dyn_mag = math.sqrt(dyn_x * dyn_x + dyn_y * dyn_y + dyn_z * dyn_z)
+
+        return{
+            'gravity': (self.grav_x, self.grav_y, self.grav_z),
+            'dynamic': (dyn_x, dyn_y, dyn_z),
+            'dynamic_magnitude': dyn_mag
+        }        
+        

@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "gps-spoofing-and-ai-detection",
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"python-envs.pythonProjects": []
+	}
+}
