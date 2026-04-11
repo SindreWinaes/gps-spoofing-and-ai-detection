@@ -8,6 +8,9 @@ class LoRaTx:
     
     PACKET_GPS = 0
     PACKET_ACCEL = 1
+    
+    FREQ_GPS = 868100000
+    FREQ_ACCEL = 868300000
 
     GPS_FORMAT = 'BBfffffifi'
     ACCEL_FORMAT = 'Bfffffffffff'
@@ -74,6 +77,9 @@ class LoRaTx:
     def send_accel(self, accel_data):
         # Pack and send accelerometer packet
         try:
+            
+            self.lora.frequency(self.FREQ_ACCEL)
+            
             def safe(val):
                 return val if val is not None else 0.0
             
@@ -92,7 +98,9 @@ class LoRaTx:
                 safe(accel_data['accel_energy']),
                 safe(accel_data['accel_zero_cross'])
             )
-            return self._send_packet(packed)
+            result = self._send_packet(packed)
+            self.lora.frequency(self.FREQ_GPS)
+            return result
         
         except Exception as e:
             print("Accel Pack error: {}".format(e))

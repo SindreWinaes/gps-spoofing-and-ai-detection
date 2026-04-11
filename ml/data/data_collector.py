@@ -4,6 +4,7 @@ from datetime import datetime
 import csv
 import os
 import select
+from time import time
 
 UDP_IP = "0.0.0.0"
 
@@ -54,6 +55,8 @@ gps_count = 0
 accel_count = 0
 unknown_count = 0
 latest_accel = None
+latest_accel_time = 0
+
 
 try:
     while True:
@@ -84,8 +87,9 @@ try:
 
                 with open(log_filename, 'a', newline='') as f:
                     row_time = datetime.now().isoformat()
+                    accel_age = time() - latest_accel_time
 
-                    if latest_accel is not None:
+                    if latest_accel is not None and accel_age < 5.0:
                         a = latest_accel
                         csv.writer(f).writerow([
                             row_time, '', label,
@@ -119,6 +123,8 @@ try:
                     'accel_x': accel_x, 'accel_y': accel_y, 'accel_z': accel_z,
                     'accel_std': accel_std, 'accel_energy': accel_energy, 'accel_zero_cross': accel_zero_cross
                 }
+                latest_accel_time = time()
+                
 
                 print(f"Accel #{accel_count:4d} | roll:{roll:.4f} pitch:{pitch:.4f} | "
                       f"dyn:{dyn_mag:.4f} jerk:{jerk_mag:.4f} jerk_std:{jerk_std:.4f}")
@@ -138,4 +144,4 @@ except KeyboardInterrupt:
     print(f"Saved to: {log_filename}")
 finally:
     sock_gps.close()
-    sock_accel.close
+    sock_accel.close()
