@@ -12,7 +12,7 @@ class LoRaTx:
     GPS_FORMAT = 'BBfffffifi'
     ACCEL_FORMAT = 'Bffffffffffff'
     
-    def __init__(self, tx_power=2, spreading_factor=10):
+    def __init__(self, tx_power=14, spreading_factor=10):
         # Initialize Lora EU68
         self.lora = LoRa(mode=LoRa.LORA, region=LoRa.EU868)
         

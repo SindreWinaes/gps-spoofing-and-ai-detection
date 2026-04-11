@@ -123,7 +123,7 @@ def main():
     print("System Startup - Device A")
 
     gps_count = 0
-
+    
     while True:
         try: 
             print("\nReading Sensors...")
