@@ -27,13 +27,12 @@ def is_valid_gps(gps_data):
         return False
     if gps_data['sats'] < 3 or gps_data['sats'] > 32:
         return False
-    if (not 50.0 < gps_data['lat'] < 72.0): # Norway bounds
+    if (not 50.0 < gps_data['lat'] < 72.0):
         return False
-    if not (4.0 < gps_data['lon'] < 32.0): # Norway bounds
+    if not (4.0 < gps_data['lon'] < 32.0):
         return False
     return True
 
-# Maps to CSV collum
 def build_log_line(gps_data, accel_data, label):
     
     def safe(val):
@@ -41,10 +40,10 @@ def build_log_line(gps_data, accel_data, label):
             return ''
         return '{:.6f}'.format(val)
     
-    return "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+    return "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
         time.time(),
         gps_data['utc_time'],
-        LABEL,                  #Label 0 = legitimate
+        LABEL,
         gps_data['lat'], 
         gps_data['lon'],
         gps_data['alt'],
@@ -76,16 +75,13 @@ def main():
     
     gps_sensor = GPSSensor(l76)
     
-    # Calibrate Accelerometer at startup, device must sit still and bbe level.
+    # Calibrate Accelerometer at startup, device must sit still and be level.
     pycom.heartbeat(False)
-    pycom.rgbled(0x808000) # Yellow = calibrating
+    pycom.rgbled(0x808000)
     cal = AccelCalibration()
     cal.calibration(lis, num_samples=50)
     pycom.rgbled(0x000000)
     accel_sensor = AccelSensor(lis, calibration=cal)
-    
-
-    
 
     lora_tx = LoRaTx(tx_power=14, spreading_factor=10)
 
@@ -94,8 +90,18 @@ def main():
     os.mount(sd, '/sd')
 
     log_file = None
+    accel_count = 0
+
     while log_file is None:
         gps_data = gps_sensor.read()
+        accel_data = accel_sensor.read()
+
+        # Send accel even while waiting for GPS fix
+        accel_ok = lora_tx.send_accel(accel_data)
+        if accel_ok:
+            accel_count += 1
+            print("Accel sent ({})".format(accel_count))
+
         if (gps_data and gps_data['fix'] in [1,2] and gps_data['utc_date'] and gps_data['utc_time']):
             timestamp = "{}_{:.0f}".format(gps_data['utc_date'], float(gps_data['utc_time']))
             log_file = "/sd/gps_log_A_{}.csv".format(timestamp)
@@ -107,26 +113,30 @@ def main():
             sleep(0.5)
             pycom.rgbled(0x000000)
             sleep(0.5)
-        
-
 
     # Write CSV header
     with open(log_file, "w") as f:
         f.write(CSV_HEADER)
     # --------------------------------
     
-   
     pycom.rgbled(0x000080)
     print("System Startup - Device A")
 
     gps_count = 0
-    accel_count = 0
-
+    
     while True:
         try: 
             print("\nReading Sensors...")
             gps_data = gps_sensor.read()
             accel_data = accel_sensor.read()
+            
+            # Always send accelerometer packet
+            accel_ok = lora_tx.send_accel(accel_data)
+            if accel_ok:
+                accel_count += 1
+                print("Accel sent ({})".format(accel_count))
+            else:
+                print("Accel send failed")
 
             if gps_data is None:
                 print("No GPS data yet...")
@@ -147,20 +157,12 @@ def main():
                     print("GPS sent ({})".format(gps_count))
                 else:
                     print("GPS send failed")
-
-                # Send acelerometer packet
-                accel_ok = lora_tx.send_accel(accel_data)
-                if accel_ok:
-                    accel_count += 1
-                    print("Accel sent ({})".format(accel_count))
-                else:
-                    print("Accel send failed")
                 
                 # Led Feedback
                 if gps_ok and accel_ok:
-                    pycom.rgbled(0x000080)  # Solid blue = sending
+                    pycom.rgbled(0x000080)
                 else:
-                    pycom.rgbled(0x800000)  # Red = Send failure
+                    pycom.rgbled(0x800000)
                     sleep(0.1)
                     pycom.rgbled(0x000080)
 
@@ -174,8 +176,7 @@ def main():
                     print("Std dev: {:.6f} Energy {:.6f}".format(
                         accel_data['accel_std'], accel_data['accel_energy']))
                 
-    
-            # -------- SAVE TO SD card --------
+                # -------- SAVE TO SD card --------
                 try:
                     with open(log_file, "a") as f:
                        line = build_log_line(gps_data, accel_data, LABEL)
@@ -189,7 +190,6 @@ def main():
                 print("Waiting for GPS fix...")
                 print("Sats:", gps_data['sats'])
 
-                # Blink blue while waiting for fix
                 pycom.rgbled(0x000080)
                 sleep(0.5)
                 pycom.rgbled(0x000000)
