@@ -71,8 +71,10 @@ class LIS2HH12:
         if (whoami[0] != 0x41):
             raise ValueError("LIS2HH12 not found")
 
-        # enable acceleration readings at 50Hz
-        self.set_odr(ODR_50_HZ)
+        # enable acceleration readings at 100 Hz (was 50 Hz)
+        # higher ODR lets the pipeline capture vehicle vibration / jerk signatures
+        # and makes the windowed stats meaningful
+        self.set_odr(ODR_100_HZ)
 
         # change the full-scale to 4g
         self.set_full_scale(FULL_SCALE_4G)
