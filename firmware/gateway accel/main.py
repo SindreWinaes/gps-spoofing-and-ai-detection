@@ -1,6 +1,7 @@
 from network import LoRa, WLAN
 import socket
 import struct
+import time
 from time import sleep
 
 
@@ -42,7 +43,9 @@ lora.frequency(868300000)
 lora.bandwidth(LoRa.BW_125KHZ)
 lora.sf(10)
 
-# Raw LoRa socket
+# Raw LoRa socket.  Pycom's LoRa socket is NON-BLOCKING by default and
+# raises OSError(errno=5, EIO) when no packet is available.  The main
+# loop swallows that specific error silently and prints anything else.
 s = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
 
 # UDP forwarding socket
@@ -55,7 +58,6 @@ client_Port = 5001
 print("Gateway Accelerometer")
 print("LoRa receiver configured:")
 print("  Frequency: {} Hz".format(lora.frequency()))
-print("  Bandwidth: {}".format(lora.bandwidth()))
 print("  SF: {}".format(lora.sf()))
 print("  Expected ACCEL size: {} bytes".format(ACCEL_SIZE))
 print("  Expected GPS size:   {} bytes (not expected on this freq)".format(GPS_SIZE))
@@ -67,32 +69,44 @@ forwarded = 0
 while True:
     try:
         data = s.recv(256)
-        if not data:
+    except OSError as e:
+        # errno 5 (EIO) is normal "no LoRa packet to read".  Sleep a
+        # bit so we don't busy-loop the radio.
+        if getattr(e, 'errno', None) == 5:
+            time.sleep_ms(20)
             continue
+        print("LoRa recv error:", e)
+        time.sleep_ms(200)
+        continue
+    except Exception as e:
+        print("LoRa recv exception:", e)
+        time.sleep_ms(200)
+        continue
 
-        n = len(data)
-        try:
-            stats = lora.stats()
-            rssi = stats.rssi
-            snr = stats.snr
-        except Exception:
-            rssi = '?'
-            snr = '?'
+    if not data:
+        time.sleep_ms(20)
+        continue
 
-        if n == ACCEL_SIZE:
-            kind = "ACCEL"
-        elif n == GPS_SIZE:
-            kind = "GPS"
-        else:
-            kind = "UNKNOWN"
+    n = len(data)
+    try:
+        stats = lora.stats()
+        rssi = stats.rssi
+        snr = stats.snr
+    except Exception:
+        rssi = '?'
+        snr = '?'
 
+    if n == ACCEL_SIZE:
+        kind = "ACCEL"
+    elif n == GPS_SIZE:
+        kind = "GPS"
+    else:
+        kind = "UNKNOWN"
+
+    try:
         udp_socket.sendto(data, (client_IP, client_Port))
         forwarded += 1
         print("[{}] {} {} B  rssi={} snr={}".format(
             forwarded, kind, n, rssi, snr))
-
     except Exception as e:
-        try:
-            print("recv/send error:", e)
-        except Exception:
-            pass
+        print("UDP send error:", e)

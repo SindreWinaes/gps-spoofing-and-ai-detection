@@ -1,0 +1,31 @@
+{
+  "accuracy": 0.9091627172195893,
+  "precision": 0.9369894982497082,
+  "recall": 0.9293981481481481,
+  "f1": 0.9331783846600813,
+  "confusion_matrix": [
+    [
+      348,
+      54
+    ],
+    [
+      61,
+      803
+    ]
+  ],
+  "model_size_kb": 673.119140625,
+  "inference_total_ms": 2.969503402709961,
+  "inference_per_sample_ms": 0.002345579307037884,
+  "n_features": 7,
+  "feature_list": [
+    "speed_per_jerk_std",
+    "Roll Degrees",
+    "Speed",
+    "Zero Crossings",
+    "Jerk Std",
+    "Pitch Degrees",
+    "Energy"
+  ],
+  "n_train_rows": 5063,
+  "n_val_rows": 1266
+}

@@ -1,6 +1,7 @@
 from network import LoRa, WLAN
 import socket
 import struct
+import time
 from time import sleep
 
 
@@ -23,24 +24,30 @@ GPS_SIZE = struct.calcsize(GPS_FORMAT)
 ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
 
 
-# Initialize WiFi AP
+# ---- WiFi AP ----
+# This Pygate hosts the local AP that the accel Pygate and the PC both
+# join.  We sleep briefly after starting the AP so the IP query below
+# returns the actual address instead of all-zeros.
 wlan = WLAN(mode=WLAN.AP, ssid='PygateLora', auth=(WLAN.WPA2, 'pygatepw123'))
 print("WiFi AP started: SSID=PygateLora, Password=pygatepw123")
+sleep(2)
 print("Pygate IP:", wlan.ifconfig())
 
 # ---- LoRa receiver ----
 # This Pygate listens on the GPS frequency (868.1 MHz).  After the
 # firmware change that disabled Device A's GPS LoRa send, this gateway
 # receives ONLY spoofed GPS packets from Device B - that is the entire
-# point of the demo (a replay attacker sole occupant of the GPS channel).
-# If you stop seeing forwarded packets here, the spoofer is off, out of
-# range, or both - it is NOT a gateway problem.
+# point of the demo (a replay attacker as sole occupant of the GPS
+# channel).  If you stop seeing forwarded packets here, the spoofer is
+# off, out of range, or both - it is NOT a gateway problem.
 lora = LoRa(mode=LoRa.LORA, region=LoRa.EU868)
 lora.frequency(868100000)
 lora.bandwidth(LoRa.BW_125KHZ)
 lora.sf(10)
 
-# Raw LoRa socket
+# Raw LoRa socket.  Pycom's LoRa socket is NON-BLOCKING by default and
+# raises OSError(errno=5, EIO) when no packet is available.  The main
+# loop swallows that specific error silently and prints anything else.
 s = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
 
 # UDP forwarding socket
@@ -53,7 +60,6 @@ client_Port = 5000
 print("Gateway GPS")
 print("LoRa receiver configured:")
 print("  Frequency: {} Hz".format(lora.frequency()))
-print("  Bandwidth: {}".format(lora.bandwidth()))
 print("  SF: {}".format(lora.sf()))
 print("  Expected GPS size:   {} bytes".format(GPS_SIZE))
 print("  Expected ACCEL size: {} bytes (not expected on this freq)".format(ACCEL_SIZE))
@@ -65,42 +71,51 @@ forwarded = 0
 while True:
     try:
         data = s.recv(256)
-        if not data:
+    except OSError as e:
+        # errno 5 (EIO) is normal "no LoRa packet to read".  Sleep a
+        # bit so we don't busy-loop the radio.
+        if getattr(e, 'errno', None) == 5:
+            time.sleep_ms(20)
             continue
+        # Other OSErrors (socket dead, hardware fault, etc.) deserve
+        # a print so they don't get silenced like before.
+        print("LoRa recv error:", e)
+        time.sleep_ms(200)
+        continue
+    except Exception as e:
+        print("LoRa recv exception:", e)
+        time.sleep_ms(200)
+        continue
 
-        n = len(data)
-        # Try to read RSSI from the LoRa stats; fall back to '?' if the
-        # firmware version does not expose it.  RSSI lets you see signal
-        # health live during a bag-walk - useful when diagnosing whether
-        # the antenna is seated properly.
-        try:
-            stats = lora.stats()
-            rssi = stats.rssi
-            snr = stats.snr
-        except Exception:
-            rssi = '?'
-            snr = '?'
+    if not data:
+        time.sleep_ms(20)
+        continue
 
-        # Distinguish packet types by length so the gateway log matches
-        # the PC receiver's view.  Anything else is logged as 'unknown'
-        # so a sender format drift surfaces immediately.
-        if n == GPS_SIZE:
-            kind = "GPS"
-        elif n == ACCEL_SIZE:
-            kind = "ACCEL"
-        else:
-            kind = "UNKNOWN"
+    n = len(data)
+    # Try to read RSSI/SNR for the most recent packet.  Useful as a
+    # live link-health indicator during a bag-walk.
+    try:
+        stats = lora.stats()
+        rssi = stats.rssi
+        snr = stats.snr
+    except Exception:
+        rssi = '?'
+        snr = '?'
 
+    # Distinguish packet types by length so the gateway log matches
+    # the PC receiver's view.  Anything else is logged as 'unknown'
+    # so a sender format drift surfaces immediately.
+    if n == GPS_SIZE:
+        kind = "GPS"
+    elif n == ACCEL_SIZE:
+        kind = "ACCEL"
+    else:
+        kind = "UNKNOWN"
+
+    try:
         udp_socket.sendto(data, (client_IP, client_Port))
         forwarded += 1
         print("[{}] {} {} B  rssi={} snr={}".format(
             forwarded, kind, n, rssi, snr))
-
     except Exception as e:
-        # Keep the relay alive on any single-packet error.  Print the
-        # error so persistent failures aren't silenced (the original
-        # bare 'except: pass' swallowed antenna disconnect issues).
-        try:
-            print("recv/send error:", e)
-        except Exception:
-            pass
+        print("UDP send error:", e)
