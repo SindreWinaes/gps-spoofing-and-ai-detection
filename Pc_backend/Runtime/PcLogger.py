@@ -1,0 +1,93 @@
+#
+# PcLogger.py
+# Writes paired GPS + accel rows to a CSV. Header and column order
+# match the existing reciever.py output exactly so the downstream
+# DatasetMerger still picks the file up.
+#
+# An optional Prediction column gets appended when a classifier is
+# wired up. That column is NOT in the original schema, so the merge
+# pipeline ignores it (it only keeps the FEATURE_COLS it knows about).
+#
+
+from Pc_backend.Runtime.CsvWriter import CsvWriter
+
+
+# Same header reciever.py wrote, byte-for-byte. The Accel UTC column
+# is the anchor used for offline timeline merging with Device A's SD log.
+BASE_HEADER = [
+    "Time", "UTC Time", "Label",
+    "Latitude", "Longitude", "Altitude",
+    "Speed", "HDOP", "Satelites", "Course", "Fix",
+    "Accel UTC",
+    "Roll Degrees", "Pitch Degrees",
+    "Dynamic Magnitude", "Jerk", "Jerk Std",
+    "Acceleration X", "Acceleration Y", "Acceleration Z",
+    "Standard Deviation", "Energy", "Zero Crossings",
+]
+
+# Columns to add when a classifier is in play. Optional - if the
+# Receiver wasn't given a ModelBundle, these stay off and the
+# header / row width match reciever.py exactly.
+CLASSIFIER_HEADER = ["Prediction", "Confidence"]
+
+
+class PcLogger:
+
+    def __init__(self, csv_path, with_classifier=False):
+        self.csv_path = csv_path
+        self.with_classifier = with_classifier
+        self.writer = CsvWriter(csv_path)
+        # Keep the file handle open across rows. Each writerow() flushes,
+        # so a crash mid-run still keeps everything written so far.
+        self.writer.open(mode="w", newline="")
+        self.write_header()
+        # Re-open in append mode so subsequent writerow() calls add rows
+        # rather than truncate.
+        self.writer.close()
+        self.writer.open(mode="a", newline="")
+
+    def write_header(self):
+        header = list(BASE_HEADER)
+        if self.with_classifier:
+            header.extend(CLASSIFIER_HEADER)
+        self.writer.writerow(header)
+
+    def write_row(self, row):
+        # `row` is a PairedRow. The accel half may be None - we still
+        # write the GPS columns plus blanks for the accel side, matching
+        # the original reciever.py "GPS arrived before any accel" path.
+        gps = row.gps
+        accel = row.accel
+
+        base = [
+            row.timestamp,
+            gps.utc,
+            gps.label,
+            gps.lat, gps.lon, gps.alt,
+            gps.speed, gps.hdop, gps.num_sats, gps.course, gps.fix,
+        ]
+
+        if accel is not None:
+            base.extend([
+                accel.utc,
+                accel.roll, accel.pitch,
+                accel.dyn_mag, accel.jerk_mag, accel.jerk_std,
+                accel.accel_x, accel.accel_y, accel.accel_z,
+                accel.accel_std, accel.accel_energy, accel.accel_zero_cross,
+            ])
+        else:
+            base.extend(["", "", "", "", "", "", "", "", "", "", "", ""])
+
+        if self.with_classifier:
+            if row.classification is not None and row.classification.prediction >= 0:
+                base.extend([
+                    row.classification.prediction,
+                    "{:.4f}".format(row.classification.confidence),
+                ])
+            else:
+                base.extend(["", ""])
+
+        self.writer.writerow(base)
+
+    def close(self):
+        self.writer.close()

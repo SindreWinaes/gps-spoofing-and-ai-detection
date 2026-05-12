@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="23.92cm" height="16.88cm" viewBox="0 0 904 638">
+<title></title>
+<desc>Created with Enterprise Architect (Build: 1627) 2</desc>
+
+<g style="fill:#FFFFFF;fill-opacity:1.00;">
+	 <rect x="0" y="0" width="904" height="638" shape-rendering="auto"/>
+</g><g style="stroke-width:1;stroke-linecap:square;stroke-linejoin:miter; fill:#000000;fill-opacity:0.00; stroke:#000000; stroke-opacity:1.00">
+  <path d="M 6 6 L 6 632 L 898 632 L 898 6 L 6 6" shape-rendering="auto"/>
+</g>
+<g style="stroke-width:1;stroke-linecap:square;stroke-linejoin:miter; fill:#FFFFFF;fill-opacity:1.00; stroke:#000000; stroke-opacity:1.00">
+  <polygon points="6 26 115 26 128 12 128 6 6 6 6 26" shape-rendering="auto"   style="fill-rule:evenodd;"/>
+</g>
+<g style="stroke-width:1;stroke-linecap:square;stroke-linejoin:miter; fill:#000000;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="11.00" y="19.00" textLength="102" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#000000;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 11.00 19.00)">act ML Pipeline Workflow</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#CCE2A0;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+<ellipse cx="111.00" cy="474.00" rx="10.00" ry="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#9A8484;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+<ellipse cx="111.00" cy="474.00" rx="4.00" ry="4.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="102.00" y="459.00" textLength="19" style="font-family:Calibri; font-weight:0; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 102.00 459.00)">Final</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="231" y="40" width="109" height="37" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="251.00" y="57.00" textLength="69" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 251.00 57.00)">Add  cross-modal</text>
+	<text x="268.00" y="70.00" textLength="34" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 268.00 70.00)">features</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="373" y="41" width="109" height="37" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="382.00" y="58.00" textLength="90" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 382.00 58.00)">Split sessions into train</text>
+	<text x="404.00" y="71.00" textLength="47" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 404.00 71.00)">and holdout</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="503" y="41" width="109" height="37" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="520.00" y="58.00" textLength="74" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 520.00 58.00)">Save train.csv and</text>
+	<text x="534.00" y="71.00" textLength="46" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 534.00 71.00)">holdout.csv</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="638" y="40" width="172" height="46" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="663.00" y="61.00" textLength="122" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 663.00 61.00)">Apply 80/20 train-val split with</text>
+	<text x="693.00" y="74.00" textLength="62" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 693.00 74.00)">StandardScaler</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="670" y="129" width="100" height="36" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="692.00" y="145.00" textLength="56" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 692.00 145.00)">Train baseline</text>
+	<text x="689.00" y="158.00" textLength="61" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 689.00 158.00)">LGBMClassifier</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="665" y="195" width="111" height="35" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="672.00" y="217.00" textLength="96" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 672.00 217.00)">RandomForestClassifier</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#9A8484;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+<ellipse cx="52.00" cy="59.00" rx="10.00" ry="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="42.00" y="79.00" textLength="19" style="font-family:Calibri; font-weight:0; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 42.00 79.00)">Start</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="466" y="129" width="115" height="35" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="500.00" y="145.00" textLength="47" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 500.00 145.00)">Apply SHAP</text>
+	<text x="495.00" y="158.00" textLength="57" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 495.00 158.00)">TreeExplainer</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="464" y="191" width="120" height="42" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="480.00" y="210.00" textLength="88" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 480.00 210.00)">Apply UbiQTree to RF</text>
+	<text x="511.00" y="223.00" textLength="25" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 511.00 223.00)">model</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="231" y="129" width="196" height="35" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="261.00" y="151.00" textLength="136" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 261.00 151.00)">Rank features by mean( |SHAP| )</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="105" y="41" width="84" height="35" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="114.00" y="63.00" textLength="66" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 114.00 63.00)">Load all CSV files</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="246" y="193" width="175" height="39" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="261.00" y="211.00" textLength="145" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 261.00 211.00)">Compute uncertainty metrics(mean,</text>
+	<text x="280.00" y="224.00" textLength="106" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 280.00 224.00)">std, entropy, sign stability)</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#9A8484;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="810" y="122" width="6" height="108" rx="1.00" shape-rendering="auto"  />
+ <rect x="632" y="129" width="6" height="101" rx="1.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="73" y="195" width="136" height="35" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="87.00" y="217.00" textLength="107" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 87.00 217.00)">Generate uncertainty plots</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#9A8484;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="30" y="107" width="6" height="224" rx="1.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="73" y="289" width="185" height="40" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="84.00" y="307.00" textLength="162" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 84.00 307.00)">Combine SHAP + UbiQTree rankings into</text>
+	<text x="127.00" y="320.00" textLength="76" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 127.00 320.00)">combined rankings</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#9A8484;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="290" y="289" width="6" height="162" rx="1.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="331" y="303" width="183" height="40" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="341.00" y="321.00" textLength="162" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 341.00 321.00)">Accumulation curve with SHAP ranking K</text>
+	<text x="410.00" y="334.00" textLength="25" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 410.00 334.00)">= 2..N</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="550" y="301" width="118" height="42" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="566.00" y="320.00" textLength="86" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 566.00 320.00)">Pick optimal_k via 1%</text>
+	<text x="579.00" y="333.00" textLength="60" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 579.00 333.00)">delta tolerance</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="695" y="301" width="119" height="42" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="712.00" y="320.00" textLength="84" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 712.00 320.00)">Train Final LGB, save</text>
+	<text x="727.00" y="333.00" textLength="54" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 727.00 333.00)">ModelBundle</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="335" y="363" width="179" height="36" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="354.00" y="379.00" textLength="140" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 354.00 379.00)">Accumulation curve with UbiQTree</text>
+	<text x="392.00" y="392.00" textLength="65" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 392.00 392.00)">ranking K = 2..N</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="547" y="360" width="118" height="42" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="563.00" y="379.00" textLength="86" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 563.00 379.00)">Pick optimal_k via 1%</text>
+	<text x="576.00" y="392.00" textLength="60" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 576.00 392.00)">delta tolerance</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="697" y="360" width="116" height="42" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="713.00" y="379.00" textLength="84" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 713.00 379.00)">Train Final LGB, save</text>
+	<text x="728.00" y="392.00" textLength="54" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 728.00 392.00)">ModelBundle</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="335" y="414" width="179" height="37" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="355.00" y="431.00" textLength="139" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 355.00 431.00)">Accumulation curve with combined</text>
+	<text x="390.00" y="444.00" textLength="69" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 390.00 444.00)">ranking(k = 2..N)</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="548" y="414" width="113" height="37" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="561.00" y="431.00" textLength="86" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 561.00 431.00)">Pick optimal_k via 1%</text>
+	<text x="574.00" y="444.00" textLength="60" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 574.00 444.00)">delta tolerance</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="695" y="413" width="116" height="39" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="711.00" y="431.00" textLength="84" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 711.00 431.00)">Train Final LGB, save</text>
+	<text x="726.00" y="444.00" textLength="54" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 726.00 444.00)">ModelBundle</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#9A8484;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="848" y="275" width="6" height="330" rx="1.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="542" y="547" width="268" height="34" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="586.00" y="569.00" textLength="179" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 586.00 569.00)">Load each ModelBundle and apply to holdout</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="214" y="545" width="289" height="40" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="233.00" y="563.00" textLength="250" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 233.00 563.00)">Compute metrics (accuracy, preccission, recall, F1, model size,</text>
+	<text x="299.00" y="576.00" textLength="119" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 299.00 576.00)">inference time for each track)</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#FDF1D9;fill-opacity:1.00; stroke:#9A8484; stroke-opacity:1.00">
+ <rect x="36" y="547" width="149" height="35" rx="10.00" shape-rendering="auto"  />
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00">
+	<text x="45.00" y="569.00" textLength="130" style="font-family:Calibri; font-weight:700; font-style:normal; font-size:10px; fill:#595959;fill-opacity:1.00; stroke:#000000; stroke-opacity:0.00 stroke-width:0; white-space: pre;" xml:space="preserve" transform="rotate(-0.00 45.00 569.00)">Save metrics.json for each track</text>
+</g>
+<g style="stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel; fill:#000000;fill-opacity:0.00; stroke:#69738C; stroke-opacity:1.00">
+  <path d="M 466 146 L 427 146" shape-rendering="auto"/>
+  <path d="M 441 141 L 427 146 L 441 151" shape-rendering="auto"/>
+  <path d="M 62 58 L 105 58" shape-rendering="auto"/>
+  <path d="M 91 63 L 105 58 L 91 53" shape-rendering="auto"/>
+  <path d="M 189 58 L 231 58" shape-rendering="auto"/>
+  <path d="M 217 63 L 231 58 L 217 53" shape-rendering="auto"/>
+  <path d="M 340 58 L 373 58" shape-rendering="auto"/>
+  <path d="M 359 63 L 373 58 L 359 53" shape-rendering="auto"/>
+  <path d="M 482 59 L 503 59" shape-rendering="auto"/>
+  <path d="M 489 64 L 503 59 L 489 54" shape-rendering="auto"/>
+  <path d="M 612 60 L 638 60" shape-rendering="auto"/>
+  <path d="M 624 65 L 638 60 L 624 55" shape-rendering="auto"/>
+  <path d="M 810 73 L 846 73 L 846 177 L 816 177" shape-rendering="auto"/>
+  <path d="M 830 172 L 816 177 L 830 182" shape-rendering="auto"/>
+  <path d="M 810 148 L 770 148" shape-rendering="auto"/>
+  <path d="M 784 143 L 770 148 L 784 153" shape-rendering="auto"/>
+  <path d="M 810 213 L 776 213" shape-rendering="auto"/>
+  <path d="M 790 208 L 776 213 L 790 218" shape-rendering="auto"/>
+  <path d="M 670 147 L 638 147" shape-rendering="auto"/>
+  <path d="M 652 142 L 638 147 L 652 152" shape-rendering="auto"/>
+  <path d="M 665 212 L 638 212" shape-rendering="auto"/>
+  <path d="M 652 207 L 638 212 L 652 217" shape-rendering="auto"/>
+  <path d="M 632 146 L 581 146" shape-rendering="auto"/>
+  <path d="M 595 141 L 581 146 L 595 151" shape-rendering="auto"/>
+  <path d="M 632 215 L 584 214" shape-rendering="auto"/>
+  <path d="M 598 209 L 584 214 L 598 219" shape-rendering="auto"/>
+  <path d="M 464 212 L 421 212" shape-rendering="auto"/>
+  <path d="M 435 207 L 421 212 L 435 217" shape-rendering="auto"/>
+  <path d="M 246 212 L 209 212" shape-rendering="auto"/>
+  <path d="M 223 207 L 209 212 L 223 217" shape-rendering="auto"/>
+  <path d="M 231 141 L 36 141" shape-rendering="auto"/>
+  <path d="M 50 136 L 36 141 L 50 146" shape-rendering="auto"/>
+  <path d="M 73 211 L 36 211" shape-rendering="auto"/>
+  <path d="M 50 206 L 36 211 L 50 216" shape-rendering="auto"/>
+  <path d="M 36 305 L 73 305" shape-rendering="auto"/>
+  <path d="M 59 310 L 73 305 L 59 300" shape-rendering="auto"/>
+  <path d="M 172 329 L 172 383 L 290 383" shape-rendering="auto"/>
+  <path d="M 276 388 L 290 383 L 276 378" shape-rendering="auto"/>
+  <path d="M 296 326 L 331 326" shape-rendering="auto"/>
+  <path d="M 317 331 L 331 326 L 317 321" shape-rendering="auto"/>
+  <path d="M 514 322 L 550 322" shape-rendering="auto"/>
+  <path d="M 536 327 L 550 322 L 536 317" shape-rendering="auto"/>
+  <path d="M 668 322 L 695 322" shape-rendering="auto"/>
+  <path d="M 681 327 L 695 322 L 681 317" shape-rendering="auto"/>
+  <path d="M 296 382 L 335 382" shape-rendering="auto"/>
+  <path d="M 321 387 L 335 382 L 321 377" shape-rendering="auto"/>
+  <path d="M 514 381 L 547 381" shape-rendering="auto"/>
+  <path d="M 533 386 L 547 381 L 533 376" shape-rendering="auto"/>
+  <path d="M 665 381 L 697 381" shape-rendering="auto"/>
+  <path d="M 683 386 L 697 381 L 683 376" shape-rendering="auto"/>
+  <path d="M 296 433 L 335 433" shape-rendering="auto"/>
+  <path d="M 321 438 L 335 433 L 321 428" shape-rendering="auto"/>
+  <path d="M 514 432 L 548 432" shape-rendering="auto"/>
+  <path d="M 534 437 L 548 432 L 534 427" shape-rendering="auto"/>
+  <path d="M 661 432 L 695 432" shape-rendering="auto"/>
+  <path d="M 681 437 L 695 432 L 681 427" shape-rendering="auto"/>
+  <path d="M 814 319 L 848 319" shape-rendering="auto"/>
+  <path d="M 834 324 L 848 319 L 834 314" shape-rendering="auto"/>
+  <path d="M 813 382 L 848 382" shape-rendering="auto"/>
+  <path d="M 834 387 L 848 382 L 834 377" shape-rendering="auto"/>
+  <path d="M 811 435 L 848 435" shape-rendering="auto"/>
+  <path d="M 834 440 L 848 435 L 834 430" shape-rendering="auto"/>
+  <path d="M 848 564 L 810 564" shape-rendering="auto"/>
+  <path d="M 824 559 L 810 564 L 824 569" shape-rendering="auto"/>
+  <path d="M 542 564 L 503 564" shape-rendering="auto"/>
+  <path d="M 517 559 L 503 564 L 517 569" shape-rendering="auto"/>
+  <path d="M 214 564 L 185 564" shape-rendering="auto"/>
+  <path d="M 199 559 L 185 564 L 199 569" shape-rendering="auto"/>
+  <path d="M 110 547 L 110 484" shape-rendering="auto"/>
+  <path d="M 115 498 L 110 484 L 105 498" shape-rendering="auto"/>
+</g>
+</svg>

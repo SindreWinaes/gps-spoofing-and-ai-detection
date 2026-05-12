@@ -1,0 +1,192 @@
+#
+# DatasetMerger.py
+# Reads every CSV in the dataset folder (PC logs = spoof + legit mix,
+# SD card logs = legit), unifies their UTC columns, tags rows with a
+# session_id derived from the filename, adds cross-modal features,
+# splits into train + holdout by session, and writes train.csv /
+# holdout.csv to the processed folder.
+#
+# Same behaviour as the existing ml/pipeline/merge.py - this class just
+# wraps that script's module-level functions so the pipeline diagram
+# has a class to point at. Cross-modal math is delegated to
+# FeatureComputer so the runtime classifier and the offline trainer
+# stay in sync.
+#
+
+import glob
+import os
+
+import pandas as pd
+
+from Pc_backend.Pc_common.FeatureComputer import FeatureComputer
+
+
+class DatasetMerger:
+
+    def __init__(self, data_dir, out_dir, feature_cols, holdout_tokens):
+        self.data_dir = data_dir
+        self.out_dir = out_dir
+        self.feature_cols = list(feature_cols)
+        self.holdout_tokens = list(holdout_tokens)
+        self.features = FeatureComputer()
+
+    # -----------------------------------------------------------------
+    # Helpers
+    # -----------------------------------------------------------------
+
+    @staticmethod
+    def _session_id_from_filename(path):
+        # Filename without extension. Used as the session_id column so
+        # split_train_holdout can group rows by their source recording.
+        return os.path.splitext(os.path.basename(path))[0]
+
+    def _is_holdout_session(self, session_id):
+        # True if any HOLDOUT_TOKENS substring appears in the session id.
+        return any(tok in session_id for tok in self.holdout_tokens)
+
+    # -----------------------------------------------------------------
+    # Load one CSV
+    # -----------------------------------------------------------------
+
+    def _load_one_file(self, path):
+        # Read one CSV, normalise column names, build a unified utc
+        # column, keep only what's needed, tag with session_id.
+        df = pd.read_csv(path)
+
+        # Some firmware versions wrote headers with a leading space
+        df.columns = [c.strip() for c in df.columns]
+
+        # Build a unified utc column from whichever UTC fields the file provides:
+        #   SD log: "UTC Date" + "UTC Time" -> concatenate to DDMMYY_HHMMSS.SSS
+        #   PC log: "UTC Time" already in DDMMYY_HHMMSS.SSS format -> use as-is
+        if "UTC Date" in df.columns:
+            df["utc"] = df["UTC Date"].astype(str) + "_" + df["UTC Time"].astype(str)
+        elif "UTC Time" in df.columns:
+            df["utc"] = df["UTC Time"].astype(str)
+        else:
+            df["utc"] = pd.NA
+
+        # Normalise utc: parse the HHMMSS.SSS portion and re-format with
+        # 3 decimals so PC log (was 6 decimals) and SD log (was 1 decimal) match.
+        def _normalize_utc(s):
+            if pd.isna(s) or "_" not in str(s):
+                return s
+            try:
+                d, t = str(s).split("_", 1)
+                return f"{d}_{float(t):010.3f}"
+            except (ValueError, TypeError):
+                return s
+
+        df["utc"] = df["utc"].apply(_normalize_utc)
+
+        keep_cols = ["utc", "Label"] + self.feature_cols
+
+        # If a column is missing, fill it with NaN so later concat does
+        # not error out. Print a warning so the operator notices.
+        missing = [c for c in keep_cols if c not in df.columns]
+        if missing:
+            print(f"WARNING {os.path.basename(path)} missing columns: {missing}")
+            for c in missing:
+                df[c] = pd.NA
+
+        df = df[keep_cols].copy()
+        df["session_id"] = self._session_id_from_filename(path)
+        return df
+
+    # -----------------------------------------------------------------
+    # Load everything
+    # -----------------------------------------------------------------
+
+    def load_all(self):
+        # Glob every CSV in data_dir, run _load_one_file on each, concat.
+        # Skips temp files and the spoofer's route/raw-accel logs which
+        # share the folder but are not training data.
+        paths = sorted(glob.glob(os.path.join(self.data_dir, "*.csv")))
+        paths = [
+            p for p in paths
+            if not os.path.basename(p).startswith(".~")
+            and not os.path.basename(p).startswith("route_")
+            and not os.path.basename(p).startswith("accel_raw_")
+        ]
+
+        print(f"Found {len(paths)} CSV files in {self.data_dir}\n")
+
+        dfs = []
+        for p in paths:
+            try:
+                df = self._load_one_file(p)
+                n_spoof = (df["Label"] == 1).sum()
+                n_legit = (df["Label"] == 0).sum()
+                print(f" {os.path.basename(p)[:65]:<65s} "
+                      f"rows={len(df):>5d} spoof={n_spoof:>5d} legit={n_legit:>5}")
+                dfs.append(df)
+            except Exception as e:
+                print(f" FAIL {os.path.basename(p)}: {e}")
+
+        if not dfs:
+            raise RuntimeError(f"No usable CSVs in {self.data_dir}")
+
+        big = pd.concat(dfs, ignore_index=True)
+        print(f"\nCombined: {len(big)} rows from {len(dfs)} files")
+        return big
+
+    # -----------------------------------------------------------------
+    # Cross-modal features
+    # -----------------------------------------------------------------
+
+    def add_cross_modal_features(self, df):
+        # Delegated to FeatureComputer so the runtime classifier uses
+        # the exact same arithmetic as training.
+        df = self.features.compute_batch(df)
+
+        print(f"\nAdded {len(self.features.FEATURE_NAMES)} cross-modal features:")
+        print(f"  motion_disagreement   (binary GPS vs accel motion)")
+        print(f"  motion_mismatch       (continuous |Speed - DynMag|)")
+        print(f"  speed_per_dyn_mag     (motion style)")
+        print(f"  speed_per_jerk_std    (speed vs jerk variability)")
+        return df
+
+    # -----------------------------------------------------------------
+    # Train / holdout split
+    # -----------------------------------------------------------------
+
+    def split_train_holdout(self, df):
+        # Split by session_id, not by row. A whole walk goes to train or
+        # holdout; the model never sees rows from the same recording on
+        # both sides of the split.
+        is_h = df["session_id"].apply(self._is_holdout_session)
+        train_df = df.loc[~is_h].copy()
+        holdout_df = df.loc[is_h].copy()
+
+        print("\nTrain sessions")
+        for sid in sorted(train_df["session_id"].unique()):
+            sub = train_df[train_df["session_id"] == sid]
+            print(f" {sid[:66]:<66s} rows={len(sub):>5d} "
+                  f"spoof={(sub['Label']==1).sum():>5d}")
+
+        print("\nHoldout sessions:")
+        for sid in sorted(holdout_df["session_id"].unique()):
+            sub = holdout_df[holdout_df["session_id"] == sid]
+            print(f" {sid[:66]:<66s} rows={len(sub):>5d} "
+                  f"spoof={(sub['Label']==1).sum():>5d}")
+
+        return train_df, holdout_df
+
+    # -----------------------------------------------------------------
+    # Save
+    # -----------------------------------------------------------------
+
+    def save(self, train, holdout):
+        os.makedirs(self.out_dir, exist_ok=True)
+        tp = os.path.join(self.out_dir, "train.csv")
+        hp = os.path.join(self.out_dir, "holdout.csv")
+        train.to_csv(tp, index=False)
+        holdout.to_csv(hp, index=False)
+
+        print("\nWrote:")
+        print(f" {tp} rows={len(train):>5d} "
+              f"spoof={(train['Label']==1).sum()} "
+              f"legit={(train['Label']==0).sum()}")
+        print(f" {hp} rows={len(holdout):>5d} "
+              f"spoof={(holdout['Label']==1).sum()} "
+              f"legit={(holdout['Label']==0).sum()}")

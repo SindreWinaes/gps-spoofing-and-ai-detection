@@ -1,0 +1,32 @@
+{
+  "track_name": "ubiqtree",
+  "accuracy": 0.5669014084507042,
+  "precision": 0.9288389513108615,
+  "recall": 0.5221052631578947,
+  "f1": 0.6684636118598383,
+  "model_size_bytes": 689827,
+  "inference_time_ms": 1.357199998892611,
+  "confusion_matrix": [
+    [
+      74,
+      19
+    ],
+    [
+      227,
+      248
+    ]
+  ],
+  "inference_per_sample_ms": 0.0023894366177686813,
+  "n_rows": 568,
+  "n_features": 8,
+  "feature_list": [
+    "Pitch Degrees",
+    "Roll Degrees",
+    "speed_per_jerk_std",
+    "Speed",
+    "Zero Crossings",
+    "Jerk Std",
+    "speed_per_dyn_mag",
+    "Standard Deviation"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "track_name": "shap",
+  "accuracy": 0.5580985915492958,
+  "precision": 0.9242424242424242,
+  "recall": 0.5136842105263157,
+  "f1": 0.6603518267929634,
+  "model_size_bytes": 689274,
+  "inference_time_ms": 1.0760000004665926,
+  "confusion_matrix": [
+    [
+      73,
+      20
+    ],
+    [
+      231,
+      244
+    ]
+  ],
+  "inference_per_sample_ms": 0.0018943661980045645,
+  "n_rows": 568,
+  "n_features": 7,
+  "feature_list": [
+    "speed_per_jerk_std",
+    "Roll Degrees",
+    "Speed",
+    "Zero Crossings",
+    "Jerk Std",
+    "Pitch Degrees",
+    "Energy"
+  ]
+}

@@ -1,0 +1,105 @@
+#
+# PacketDecoder.py
+# Decodes raw UDP bytes into GpsPacket or AccelPacket. The wire formats
+# MUST stay in sync with the firmware:
+#   Common_library/LoRaTx.py on Device A and Device B
+# If you change a struct format on the device, mirror it here or
+# packets will silently mis-decode.
+#
+
+import struct
+
+from Pc_backend.Runtime.GpsPacket import GpsPacket
+from Pc_backend.Runtime.AccelPacket import AccelPacket
+
+
+class PacketDecoder:
+
+    # First-byte type tags. Must match LoRaTx.PACKET_GPS / PACKET_ACCEL.
+    PACKET_GPS = 0
+    PACKET_ACCEL = 1
+
+    # GPS_FORMAT tail: I = utc_date (DDMMYY as uint32),
+    #                  f = utc_time (HHMMSS.SSS as float)
+    GPS_FORMAT = 'BBfffffifiIf'
+
+    # ACCEL_FORMAT tail: I = utc_date, f = utc_time at Device A's
+    # transmit moment. Used as the merge anchor.
+    ACCEL_FORMAT = 'BfffffffffffIf'
+
+    GPS_SIZE = struct.calcsize(GPS_FORMAT)
+    ACCEL_SIZE = struct.calcsize(ACCEL_FORMAT)
+
+    def decode(self, data):
+        # Empty / too-short packets are ignored. The Receiver counts them
+        # as unknowns; we just return None so the caller's flow stays simple.
+        if not data:
+            return None
+
+        packet_type = data[0]
+
+        if packet_type == self.PACKET_GPS:
+            if len(data) >= self.GPS_SIZE:
+                return self._decode_gps(data)
+            return None
+
+        if packet_type == self.PACKET_ACCEL:
+            if len(data) >= self.ACCEL_SIZE:
+                return self._decode_accel(data)
+            return None
+
+        # Unknown packet type
+        return None
+
+    def _decode_gps(self, data):
+        fields = struct.unpack(self.GPS_FORMAT, data[:self.GPS_SIZE])
+        (_, label, lat, lon, alt, speed, hdop, sats, course, fix,
+         utc_date_int, utc_time_float) = fields
+
+        # Sanity check for obviously corrupt packets. Same bounds as
+        # the existing reciever.py.
+        if abs(lat) > 90 or abs(lon) > 180 or sats < 0 or sats > 32:
+            return None
+
+        return GpsPacket(
+            label=int(label),
+            lat=float(lat),
+            lon=float(lon),
+            alt=float(alt),
+            speed=float(speed),
+            hdop=float(hdop),
+            num_sats=int(sats),
+            course=float(course),
+            fix=int(fix),
+            utc=self._format_utc(utc_date_int, utc_time_float),
+        )
+
+    def _decode_accel(self, data):
+        fields = struct.unpack(self.ACCEL_FORMAT, data[:self.ACCEL_SIZE])
+        (_, roll, pitch, dyn_mag, jerk_mag, jerk_std,
+         accel_x, accel_y, accel_z,
+         accel_std, accel_energy, accel_zero_cross,
+         utc_date_int, utc_time_float) = fields
+
+        return AccelPacket(
+            roll=float(roll),
+            pitch=float(pitch),
+            dyn_mag=float(dyn_mag),
+            jerk_mag=float(jerk_mag),
+            jerk_std=float(jerk_std),
+            accel_x=float(accel_x),
+            accel_y=float(accel_y),
+            accel_z=float(accel_z),
+            accel_std=float(accel_std),
+            accel_energy=float(accel_energy),
+            accel_zero_cross=float(accel_zero_cross),
+            utc=self._format_utc(utc_date_int, utc_time_float),
+        )
+
+    @staticmethod
+    def _format_utc(utc_date_int, utc_time_float):
+        # 'DDMMYY_HHMMSS.SSS' or '' if the firmware hadn't acquired a fix
+        # yet (sends zero for both fields in that case).
+        if utc_date_int > 0 and utc_time_float > 0:
+            return "{:06d}_{:013.6f}".format(int(utc_date_int), float(utc_time_float))
+        return ""

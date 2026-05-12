@@ -1,0 +1,206 @@
+#
+# Trainer.py
+# Orchestrates the actual training: 80/20 stratified split, fit the
+# scaler on train only, train a baseline LGBM (used by the SHAP track)
+# and a baseline RF (used by the UbiQTree track), then run the
+# feature-accumulation curve to pick how many features to keep, and
+# finally train the "real" LGBM on that subset.
+#
+# Same numbers as train_shap.py - 80/20 split, RANDOM_STATE=42,
+# DELTA_TOLERANCE=0.01, the same LGBM hyperparameters. The class just
+# wraps them so the pipeline diagram has somewhere to point.
+#
+
+import pandas as pd
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+import lightgbm as lgb
+
+from Pc_backend.Ml_pipeline.StandardScaler import StandardScaler
+from Pc_backend.Ml_pipeline.LGBMClassifier import LGBMClassifier
+from Pc_backend.Ml_pipeline.RandomForestClassifier import RandomForestClassifier
+from Pc_backend.Ml_pipeline.AccumulationResult import AccumulationResult
+from Pc_backend.Ml_pipeline.ModelBundle import ModelBundle
+
+
+# Same constants as train_shap.py
+TEST_SIZE = 0.20
+RANDOM_STATE = 42
+DELTA_TOLERANCE = 0.01
+
+LGBM_PARAMS = dict(
+    objective='binary',
+    num_leaves=31,
+    learning_rate=0.05,
+    n_estimators=200,
+    class_weight='balanced',
+    random_state=RANDOM_STATE,
+    verbose=-1,
+)
+
+# RF baseline used as the model UbiQTree's ExplainerClassification
+# wraps. Modest defaults - we don't need a state-of-the-art RF here,
+# just an ensemble with enough trees that the Dirichlet weighting has
+# something to work with.
+RF_PARAMS = dict(
+    n_estimators=100,
+    class_weight='balanced',
+    random_state=RANDOM_STATE,
+    n_jobs=-1,
+)
+
+
+class Trainer:
+
+    def __init__(self, delta_tolerance=DELTA_TOLERANCE):
+        self.delta_tolerance = delta_tolerance
+        self.scaler = None   # populated by split_and_normalize()
+
+    # -----------------------------------------------------------------
+    # Split + scale
+    # -----------------------------------------------------------------
+
+    def split_and_normalize(self, X, y):
+        # Stratified 80/20 split, fit StandardScaler on TRAIN only,
+        # apply to both. Returns (X_tr_scaled, X_val_scaled, y_tr, y_val).
+        # The scaler is stored on the instance so save/load can pick
+        # it up later via self.scaler.
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X, y,
+            test_size=TEST_SIZE,
+            stratify=y,
+            random_state=RANDOM_STATE,
+        )
+
+        print(f"\nTrain split: {len(X_tr)} rows  "
+              f"({(y_tr==1).sum()} spoof, {(y_tr==0).sum()} legit)")
+        print(f"Val split:   {len(X_val)} rows  "
+              f"({(y_val==1).sum()} spoof, {(y_val==0).sum()} legit)")
+
+        scaler = StandardScaler()
+        X_tr_scaled = pd.DataFrame(
+            scaler.fit_transform(X_tr),
+            columns=X_tr.columns,
+            index=X_tr.index,
+        )
+        X_val_scaled = pd.DataFrame(
+            scaler.transform(X_val),
+            columns=X_val.columns,
+            index=X_val.index,
+        )
+
+        self.scaler = scaler
+        print(f"Scaler fitted on {len(X_tr)} training rows")
+        return X_tr_scaled, X_val_scaled, y_tr, y_val
+
+    # -----------------------------------------------------------------
+    # Baselines
+    # -----------------------------------------------------------------
+
+    def train_baseline_lgb(self, X_tr, y_tr, X_val, y_val):
+        # Baseline LGBM on the full feature set. SHAP gets ranked using
+        # this model.
+        model = LGBMClassifier(**LGBM_PARAMS)
+        model.fit(X_tr, y_tr)
+
+        y_pred = model.predict(X_val)
+        acc = accuracy_score(y_val, y_pred)
+        print(f"\nBaseline LGBM accuracy on val set (all features): {acc:.4f}")
+        return model
+
+    def train_baseline_rf(self, X_tr, y_tr):
+        # Baseline Random Forest. UbiQTree's ExplainerClassification
+        # wraps this and runs Dirichlet-weighted tree resampling for
+        # uncertainty bounds. RF is the natural pick because it exposes
+        # `estimators_` cleanly.
+        rf = RandomForestClassifier(**RF_PARAMS)
+        rf.fit(X_tr, y_tr)
+        print(f"Baseline RF trained ({RF_PARAMS['n_estimators']} trees)")
+        return rf
+
+    # -----------------------------------------------------------------
+    # Feature accumulation curve
+    # -----------------------------------------------------------------
+
+    def feature_accumulation_curve_lgb(self, X_tr, y_tr, X_val, y_val,
+                                       ranked_features):
+        # Train LGBM with the top-k features for k=2..N, record val
+        # accuracy at each k. Lets us pick a feature count that's near
+        # the peak without paying for marginal gains from the long tail.
+        print("\nFeature accumulation:")
+        print(f"  {'k':<4s}{'features used':<60s}{'val accuracy':>14s}")
+        k_values = []
+        accs = []
+
+        for k in range(2, len(ranked_features) + 1):
+            cols = ranked_features[:k]
+            model = LGBMClassifier(**LGBM_PARAMS)
+            model.fit(X_tr[cols], y_tr)
+            y_pred = model.predict(X_val[cols])
+            acc = accuracy_score(y_val, y_pred)
+            used = ", ".join(cols)
+            if len(used) > 58:
+                used = used[:55] + "..."
+            print(f"  {k:<4d}{used:<60s}{acc:>14.4f}")
+            k_values.append(k)
+            accs.append(acc)
+
+        max_acc = max(accs)
+        # Pick optimal k right here so the result is self-contained
+        result = AccumulationResult(
+            k_values=k_values,
+            accuracies=accs,
+            ranked_features=list(ranked_features),
+            max_accuracy=max_acc,
+            optimal_k=0,                     # filled in by select_optimal_k
+            delta_tolerance=self.delta_tolerance,
+        )
+        result.optimal_k = self.select_optimal_k(result)
+        return result
+
+    def select_optimal_k(self, result):
+        # Smallest k whose accuracy is within delta_tolerance of max.
+        # "Pareto-style" feature selection - the fewest features that
+        # don't measurably hurt accuracy.
+        threshold = result.max_accuracy - self.delta_tolerance
+        for k, acc in zip(result.k_values, result.accuracies):
+            if acc >= threshold:
+                print(f"\nMax accuracy: {result.max_accuracy:.4f}")
+                print(f"Threshold (max - {self.delta_tolerance}): {threshold:.4f}")
+                print(f"Smallest k that meets threshold: {k}")
+                return k
+        # Fallback: nothing met the threshold (shouldn't happen, max
+        # is always within delta of itself), use the largest k.
+        return result.k_values[-1]
+
+    # -----------------------------------------------------------------
+    # Final model
+    # -----------------------------------------------------------------
+
+    def train_final_lgb(self, X_tr, y_tr, X_val, y_val, top_k_features,
+                        track_name):
+        # Train the final LGBM on the chosen feature subset, print quick
+        # val-set metrics for console feedback, and package everything
+        # (model + scaler + feature list + track name) into a ModelBundle.
+        # The detailed evaluation (holdout, model size, inference time)
+        # is the Evaluator's job.
+        print(f"\n=== Final model: track={track_name}, {len(top_k_features)} features ===")
+        for f in top_k_features:
+            print(f"  {f}")
+
+        model = LGBMClassifier(**LGBM_PARAMS)
+        model.fit(X_tr[top_k_features], y_tr)
+
+        # Quick val-set check (no timing / persistence here)
+        y_pred = model.predict(X_val[top_k_features])
+        acc = accuracy_score(y_val, y_pred)
+        print(f"Val accuracy on chosen subset: {acc:.4f}")
+
+        return ModelBundle(
+            model=model,
+            scaler=self.scaler,
+            feature_list=list(top_k_features),
+            track_name=track_name,
+        )

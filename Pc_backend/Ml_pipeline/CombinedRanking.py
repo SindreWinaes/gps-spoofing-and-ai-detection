@@ -1,0 +1,36 @@
+#
+# CombinedRanking.py
+# Holds the result of fusing SHAP + UbiQTree rankings into a single
+# ordering. RankingCombiner produces one of these; the Trainer's
+# combined-track uses top_k_features() to pick which features to train
+# on.
+#
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class CombinedRanking:
+    feature_names: list = field(default_factory=list)
+    # Rank position for each feature, 1 = most important. Same length /
+    # same order as feature_names.
+    combined_ranks: list = field(default_factory=list)
+    # Whatever numeric score the chosen method produced (rank sum, Borda
+    # points, geometric-mean importance, ...). Kept for inspection /
+    # reporting; the ranks are what actually drives feature selection.
+    combined_scores: list = field(default_factory=list)
+    # "rank_sum" | "borda" | "geometric_mean" - records which fusion
+    # method RankingCombiner used so we can compare results across runs.
+    method_used: str = ""
+
+    def top_k_features(self, k):
+        # Returns the top-k feature names sorted by combined_ranks
+        # ascending (1 = best). Caller chooses k from the accumulation
+        # curve as usual.
+        if not self.feature_names:
+            return []
+        pairs = sorted(
+            zip(self.feature_names, self.combined_ranks),
+            key=lambda kv: kv[1],
+        )
+        return [name for name, _ in pairs[:k]]

@@ -1,0 +1,97 @@
+#
+# FeatureRanker.py
+# Wraps shap.TreeExplainer to produce a ShapResult and (optionally) a
+# bar-style summary plot. Same logic as compute_shap_ranking() in
+# train_shap.py, just packaged so the pipeline diagram has a class.
+#
+
+import os
+
+import numpy as np
+import matplotlib.pyplot as plt
+import shap
+
+from Pc_backend.Ml_pipeline.TreeExplainer import TreeExplainer
+from Pc_backend.Ml_pipeline.ShapResult import ShapResult
+
+
+class FeatureRanker:
+
+    def __init__(self, model, feature_names):
+        self.model = model
+        self.feature_names = list(feature_names)
+        self.explainer = TreeExplainer(model)
+
+        # Cached after rank() so plot_summary() doesn't have to recompute.
+        # Both are needed by shap.summary_plot.
+        self._last_shap_values = None
+        self._last_X_val = None
+
+    def rank(self, X_val):
+        # Compute per-row SHAP values, then collapse to per-feature stats.
+        shap_values = self.explainer.shap_values(X_val)
+
+        # Older shap returns a list with one array per class; newer
+        # versions return a single array. Pick the spoof-class slice in
+        # the list case so binary classification works either way.
+        if isinstance(shap_values, list):
+            shap_values = shap_values[1]
+
+        mean_shap = shap_values.mean(axis=0)
+        mean_abs_shap = np.abs(shap_values).mean(axis=0)
+
+        # Rank position for each feature in feature_names order.
+        # rank 1 = highest mean(|SHAP|).
+        order = np.argsort(-mean_abs_shap)
+        ranks = [0] * len(self.feature_names)
+        for rank_pos, feat_idx in enumerate(order, start=1):
+            ranks[feat_idx] = rank_pos
+
+        # Same console table the existing train_shap.py prints
+        print("\nFeature ranking by mean(|SHAP|):")
+        print(f"  {'rank':<5s}{'feature':<22s}{'mean|SHAP|':>12s}")
+        importance = sorted(
+            zip(self.feature_names, mean_abs_shap),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )
+        for i, (feat, val) in enumerate(importance, start=1):
+            print(f"  {i:<5d}{feat:<22s}{val:>12.6f}")
+
+        self._last_shap_values = shap_values
+        self._last_X_val = X_val
+
+        return ShapResult(
+            feature_names=self.feature_names,
+            mean_shap=mean_shap,
+            mean_abs_shap=mean_abs_shap,
+            ranks=ranks,
+        )
+
+    def plot_summary(self, result, save_path):
+        # `result` is accepted (and documented) for API symmetry with the
+        # EA model, but shap.summary_plot needs the full per-row SHAP
+        # matrix - so we use the cached arrays from the last rank() call.
+        # If rank() hasn't been called yet, we can't plot.
+        if self._last_shap_values is None or self._last_X_val is None:
+            raise RuntimeError(
+                "FeatureRanker.plot_summary: call rank() first so the "
+                "SHAP matrix is available."
+            )
+
+        # Make sure the save directory exists
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+
+        plt.figure(figsize=(10, 6))
+        shap.summary_plot(
+            self._last_shap_values,
+            self._last_X_val,
+            plot_type="bar",
+            show=False,
+        )
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=120, bbox_inches='tight')
+        plt.close()
+        print(f"Saved SHAP summary plot to {save_path}")

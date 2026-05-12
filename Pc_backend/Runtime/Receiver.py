@@ -1,0 +1,264 @@
+#
+# Receiver.py
+# PC-side UDP server. Listens on two ports (one for GPS, one for accel),
+# decodes the bytes into packets, pairs them with StreamPairer, computes
+# the cross-modal features, optionally classifies the row online, and
+# writes everything to a timestamped CSV via PcLogger.
+#
+# Functionally the same as ml/data/reciever.py - this class just splits
+# the script up so the pipeline diagram has a real orchestrator.
+#
+
+import os
+import select
+from datetime import datetime
+from time import time as _wall_time
+
+from Pc_backend.Pc_common.FeatureComputer import FeatureComputer
+from Pc_backend.Runtime.PacketDecoder import PacketDecoder
+from Pc_backend.Runtime.StreamPairer import StreamPairer
+from Pc_backend.Runtime.OnlineClassifier import OnlineClassifier
+from Pc_backend.Runtime.PcLogger import PcLogger
+from Pc_backend.Runtime.socket import socket as _UDPSocket, AF_INET, SOCK_DGRAM
+
+
+# Mapping from packet field name to the CamelCase column name the model
+# was trained on. Single source of truth so the classifier and the CSV
+# log stay in lockstep with the training column names.
+GPS_FIELD_TO_COL = {
+    "lat": "Latitude",
+    "lon": "Longitude",
+    "alt": "Altitude",
+    "speed": "Speed",
+    "hdop": "HDOP",
+    "num_sats": "Satelites",
+    "course": "Course",
+    "fix": "Fix",
+}
+
+ACCEL_FIELD_TO_COL = {
+    "roll": "Roll Degrees",
+    "pitch": "Pitch Degrees",
+    "dyn_mag": "Dynamic Magnitude",
+    "jerk_mag": "Jerk",
+    "jerk_std": "Jerk Std",
+    "accel_x": "Acceleration X",
+    "accel_y": "Acceleration Y",
+    "accel_z": "Acceleration Z",
+    "accel_std": "Standard Deviation",
+    "accel_energy": "Energy",
+    "accel_zero_cross": "Zero Crossings",
+}
+
+
+class Receiver:
+
+    def __init__(self,
+                 udp_port_gps=5000,
+                 udp_port_accel=5001,
+                 log_path=None,
+                 model_bundle_path=None,
+                 udp_ip="0.0.0.0",
+                 stale_threshold_s=15.0):
+        # Note: log_path / model_bundle_path moved to keyword-only with
+        # defaults because the EA-generated signature had non-default
+        # args after default args, which is invalid Python.
+
+        # ---- Sockets ----
+        self.sock_gps = _UDPSocket(AF_INET, SOCK_DGRAM)
+        self.sock_gps.bind((udp_ip, udp_port_gps))
+        self.sock_accel = _UDPSocket(AF_INET, SOCK_DGRAM)
+        self.sock_accel.bind((udp_ip, udp_port_accel))
+
+        # ---- Helpers ----
+        self.decoder = PacketDecoder()
+        self.pairer = StreamPairer(stale_threshold_s=stale_threshold_s)
+        self.features = FeatureComputer()
+
+        # ---- Optional online classifier ----
+        self.classifier = None
+        if model_bundle_path:
+            self.classifier = OnlineClassifier(model_bundle_path)
+            print(f"Loaded model bundle from {model_bundle_path}")
+            print(f"  Track: {self.classifier.bundle.track_name}")
+            print(f"  Features ({len(self.classifier.feature_list)}): "
+                  f"{self.classifier.feature_list}")
+
+        # ---- Logger ----
+        # If no path was given, auto-generate one in the current working
+        # directory matching reciever.py's old naming.
+        if log_path is None:
+            timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+            log_path = os.path.join("ml", "data", "raw", f"gps_log_{timestamp_str}.csv")
+        self.logger = PcLogger(log_path, with_classifier=(self.classifier is not None))
+
+        # ---- Counters ----
+        self.gps_count = 0
+        self.accel_count = 0
+        self._unknown_count = 0
+        self._total_packets = 0
+
+        self._log_path = log_path
+        self._udp_port_gps = udp_port_gps
+        self._udp_port_accel = udp_port_accel
+
+    # -----------------------------------------------------------------
+    # Public API
+    # -----------------------------------------------------------------
+
+    def run(self):
+        # Main loop. Same select-based approach as reciever.py.
+        print(f"Listening: GPS on :{self._udp_port_gps}, "
+              f"Accel on :{self._udp_port_accel}")
+        print(f"Expected GPS packet size: {self.decoder.GPS_SIZE} bytes")
+        print(f"Expected ACCEL packet size: {self.decoder.ACCEL_SIZE} bytes")
+        print(f"Logging to: {self._log_path}")
+        print("Press Ctrl+C to stop\n")
+
+        try:
+            while True:
+                readable, _, _ = select.select(
+                    [self.sock_gps, self.sock_accel], [], [], 1.0)
+
+                for sock in readable:
+                    data, _addr = sock.recvfrom(256)
+                    if not data:
+                        continue
+                    self._total_packets += 1
+
+                    if sock is self.sock_gps:
+                        self._handle_gps_packet(data)
+                    else:
+                        self._handle_accel_packet(data)
+
+                    if self._total_packets % 20 == 0:
+                        print(f"--- Totals: {self.gps_count} GPS, "
+                              f"{self.accel_count} ACCEL, "
+                              f"{self._unknown_count} unknown ---")
+
+        except KeyboardInterrupt:
+            print("\nStopped")
+            print(f"Total: {self._total_packets} packets, "
+                  f"{self.gps_count} GPS, {self.accel_count} ACCEL, "
+                  f"{self._unknown_count} unknown")
+            print(f"Saved to: {self._log_path}")
+
+        finally:
+            self.shutdown()
+
+    def shutdown(self):
+        try:
+            self.sock_gps.close()
+        except Exception:
+            pass
+        try:
+            self.sock_accel.close()
+        except Exception:
+            pass
+        try:
+            self.logger.close()
+        except Exception:
+            pass
+
+    # -----------------------------------------------------------------
+    # Packet handlers
+    # -----------------------------------------------------------------
+
+    def _handle_gps_packet(self, data):
+        packet = self.decoder.decode(data)
+        if packet is None:
+            self._unknown_count += 1
+            return
+
+        self.gps_count += 1
+        print(f"GPS #{self.gps_count:4d} | {packet.lat:.6f}, {packet.lon:.6f} | "
+              f"alt:{packet.alt:.1f} spd:{packet.speed:.2f} hdop:{packet.hdop:.2f} "
+              f"sats:{packet.num_sats} fix:{packet.fix} label:{packet.label} "
+              f"utc:{packet.utc}")
+
+        # Pair with latest accel (or None if stale / not yet seen).
+        row = self.pairer.on_gps(packet)
+
+        # Build the trained-column feature dict from the paired packets
+        row.features = self._build_feature_dict(row)
+
+        # Run the online classifier if we have one and we got a full
+        # feature dict (accel was present). With no accel we can't fill
+        # all the columns the model expects, so skip classification.
+        if self.classifier is not None and row.accel is not None:
+            row.classification = self.classifier.classify(row.features)
+            if row.classification.prediction >= 0:
+                label = "SPOOF" if row.classification.prediction == 1 else "LEGIT"
+                print(f"  --> classified: {label} "
+                      f"({row.classification.confidence:.2%} conf)")
+
+        self.logger.write_row(row)
+
+    def _handle_accel_packet(self, data):
+        packet = self.decoder.decode(data)
+        if packet is None:
+            self._unknown_count += 1
+            return
+
+        self.accel_count += 1
+        self.pairer.on_accel(packet)
+
+        print(f"Accel #{self.accel_count:4d} | utc_a:{packet.utc} | "
+              f"roll:{packet.roll:.4f} pitch:{packet.pitch:.4f} | "
+              f"dyn:{packet.dyn_mag:.4f} jerk:{packet.jerk_mag:.4f} "
+              f"jerk_std:{packet.jerk_std:.4f}")
+
+    # -----------------------------------------------------------------
+    # Feature-dict construction
+    # -----------------------------------------------------------------
+
+    def _build_feature_dict(self, row):
+        # Build a {trained_column_name: value} dict from a PairedRow.
+        # If accel is missing the accel-side keys are left out, which
+        # means the classifier won't run and the row goes to the log
+        # with the accel columns blank (matching reciever.py behaviour).
+        out = {}
+
+        if row.gps is not None:
+            for field, col in GPS_FIELD_TO_COL.items():
+                out[col] = getattr(row.gps, field)
+
+        if row.accel is not None:
+            for field, col in ACCEL_FIELD_TO_COL.items():
+                out[col] = getattr(row.accel, field)
+
+            # Cross-modal features - same math as training
+            cm = self.features.compute_one(
+                speed=out["Speed"],
+                dyn_mag=out["Dynamic Magnitude"],
+                jerk_std=out["Jerk Std"],
+            )
+            out.update(cm)
+
+        return out
+
+
+# -----------------------------------------------------------------
+# Convenience entry point - same script-style invocation as
+# reciever.py so it can be dropped in as a replacement.
+# -----------------------------------------------------------------
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gps-port", type=int, default=5000)
+    parser.add_argument("--accel-port", type=int, default=5001)
+    parser.add_argument("--log-path", default=None,
+                        help="Output CSV path. Auto-generated if omitted.")
+    parser.add_argument("--bundle", default=None,
+                        help="Path to a ModelBundle directory to enable "
+                             "online classification.")
+    args = parser.parse_args()
+
+    receiver = Receiver(
+        udp_port_gps=args.gps_port,
+        udp_port_accel=args.accel_port,
+        log_path=args.log_path,
+        model_bundle_path=args.bundle,
+    )
+    receiver.run()

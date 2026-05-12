@@ -1,0 +1,140 @@
+#
+# SdLogger.py
+# Handles the SD card on Device A: mounts /sd, writes the two CSV headers,
+# and provides append-style row writers for the merged GPS+accel log and
+# the raw 100 Hz accelerometer log. Encapsulates what used to be inline
+# in main.py so the diagram has a real class to point at.
+#
+# Files are opened/closed per write rather than held open. That costs a bit
+# of throughput but means an unexpected power loss never loses more than
+# the row in flight.
+#
+
+import os
+import time
+from machine import SD
+
+
+# Schema for the merged GPS + accel feature log. Order must stay in sync
+# with write_log_row() below and with the PC-side parser.
+CSV_HEADER = (
+    "Time, UTC Date, UTC Time, Label, Latitude, Longitude, Altitude, Speed, HDOP, Satelites, Course, Fix,"
+    " Roll Degrees, Pitch Degrees, Dynamic Magnitude, Jerk, Jerk Std, Acceleration X, Acceleration Y, Acceleration Z,"
+    " Standard Deviation, Energy, Zero Crossings\n"
+)
+
+# Schema for the raw 100 Hz accelerometer log. One row per sample, written
+# during every burst read. Lets us recompute any feature offline with
+# different window sizes / filters / ML models.
+RAW_ACCEL_HEADER = (
+    "ts_ms,sample_idx,raw_x,raw_y,raw_z,cal_x,cal_y,cal_z,"
+    "world_x,world_y,world_z,dyn_mag,roll_deg,pitch_deg\n"
+)
+
+
+class SdLogger:
+
+    def __init__(self, timestamp):
+        # `timestamp` is the GPS-derived "DDMMYY_HHMMSS" string. Used in the
+        # filename so each run is uniquely tagged with its first fix's UTC.
+        self.log_path = "/sd/gps_log_A_{}.csv".format(timestamp)
+        self.raw_accel_path = "/sd/accel_raw_A_{}.csv".format(timestamp)
+
+        # File handles - kept as instance attrs for the diagram but we
+        # actually reopen per write for power-loss safety.
+        self.log_handle = None
+        self.raw_handle = None
+
+        # Write the two CSV headers up front
+        with open(self.log_path, "w") as f:
+            f.write(CSV_HEADER)
+        with open(self.raw_accel_path, "w") as f:
+            f.write(RAW_ACCEL_HEADER)
+
+    @classmethod
+    def mount(cls):
+        # Mount the SD card at /sd. Call once at boot before constructing
+        # an SdLogger. After a soft reset the SD can already be mounted
+        # and `os.mount` raises - swallow that one so the device keeps
+        # going; any real SD failure will surface on the first write.
+        sd = SD()
+        try:
+            os.mount(sd, '/sd')
+        except OSError as e:
+            print("SD mount note:", e)
+
+    def write_log_row(self, gps, accel, label):
+        # One merged row combining a GPS fix and the latest accel features.
+        # `accel` may be None if a fix arrived before the first accel burst.
+        line = self._build_log_line(gps, accel, label)
+        try:
+            with open(self.log_path, "a") as f:
+                f.write(line)
+        except Exception as e:
+            print("SD write error:", e)
+
+    def write_raw_accel_row(self, ts_ms, sample_idx, raw_row):
+        # Raw 100 Hz sample. Called from AccelPipeline.read_burst(), but
+        # provided here for symmetry / direct use from main code.
+        try:
+            with open(self.raw_accel_path, "a") as f:
+                f.write(
+                    "{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}\n".format(
+                        ts_ms, sample_idx,
+                        raw_row['raw_x'], raw_row['raw_y'], raw_row['raw_z'],
+                        raw_row['cal_x'], raw_row['cal_y'], raw_row['cal_z'],
+                        raw_row['world_x'], raw_row['world_y'], raw_row['world_z'],
+                        raw_row['dyn_mag'], raw_row['roll_deg'], raw_row['pitch_deg'],
+                    )
+                )
+        except Exception as e:
+            print("Raw accel SD write error:", e)
+
+    def close(self):
+        # Nothing to actually close - files are reopened per write - but
+        # the diagram has a close() so we expose it for symmetry.
+        self.log_handle = None
+        self.raw_handle = None
+
+    @staticmethod
+    def _build_log_line(gps, accel, label):
+        # Formats one row of the merged GPS+accel CSV. Tolerates missing
+        # fields by emitting an empty cell rather than crashing.
+        def safe(val):
+            if val is None:
+                return ''
+            return '{:.6f}'.format(val)
+
+        def safe_gps(val):
+            if val is None:
+                return ''
+            return str(val)
+
+        # `accel` may be None during very early loops
+        a = accel if accel is not None else {}
+
+        return "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+            time.time(),
+            gps.get('utc_date', '') or '',
+            gps.get('utc_time', '') or '',
+            label,
+            safe_gps(gps.get('lat')),
+            safe_gps(gps.get('lon')),
+            safe_gps(gps.get('alt')),
+            safe_gps(gps.get('speed')),
+            safe_gps(gps.get('hdop')),
+            gps.get('sats', 0),
+            safe_gps(gps.get('course')),
+            gps.get('fix', 0),
+            safe(a.get('roll')),
+            safe(a.get('pitch')),
+            safe(a.get('dyn_mag')),
+            safe(a.get('jerk_mag')),
+            safe(a.get('jerk_std')),
+            safe(a.get('accel_x')),
+            safe(a.get('accel_y')),
+            safe(a.get('accel_z')),
+            safe(a.get('accel_std')),
+            safe(a.get('accel_energy')),
+            safe(a.get('accel_zero_cross')),
+        )

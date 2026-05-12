@@ -1,0 +1,32 @@
+{
+  "track_name": "combined",
+  "accuracy": 0.579225352112676,
+  "precision": 0.9244604316546763,
+  "recall": 0.5410526315789473,
+  "f1": 0.6826029216467463,
+  "model_size_bytes": 689809,
+  "inference_time_ms": 0.6963000014366116,
+  "confusion_matrix": [
+    [
+      72,
+      21
+    ],
+    [
+      218,
+      257
+    ]
+  ],
+  "inference_per_sample_ms": 0.0012258802842193867,
+  "n_rows": 568,
+  "n_features": 8,
+  "feature_list": [
+    "Roll Degrees",
+    "speed_per_jerk_std",
+    "Pitch Degrees",
+    "Speed",
+    "Zero Crossings",
+    "Jerk Std",
+    "speed_per_dyn_mag",
+    "Energy"
+  ]
+}
