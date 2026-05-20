@@ -1,14 +1,3 @@
-#
-# Evaluator.py
-# Holdout-set evaluation: load a saved ModelBundle, apply it to a
-# held-out DataFrame, and produce a Metrics object containing accuracy
-# / precision / recall / F1 plus model size and inference timing.
-#
-# Same logic as the existing eval_holdout.py script - this class just
-# packages it so the pipeline diagram has a class to point at and so
-# the three tracks (SHAP, UbiQTree, combined) can reuse it.
-#
-
 import os
 import time
 
@@ -25,7 +14,7 @@ from Pc_backend.Ml_pipeline.ModelBundle import ModelBundle
 from Pc_backend.Ml_pipeline.Metrics import Metrics
 
 
-# Styling for ROC plots - matches Figure 4.5 in the thesis
+# ROC plot styling
 _BG_COLOR    = "#EEF3F7"
 _GRID_COLOR  = "#C9D2DA"
 _DIAG_COLOR  = "#8E97A1"
@@ -34,9 +23,9 @@ _TITLE_COLOR = "#1F2937"
 _SUBT_COLOR  = "#6B7280"
 
 _TRACK_COLORS = {
-    "shap":     "#5BB6C4",   # teal-blue
-    "ubiqtree": "#F0A05A",   # soft orange
-    "combined": "#7FCB9B",   # soft green
+    "shap":     "#5BB6C4",
+    "ubiqtree": "#F0A05A",
+    "combined": "#7FCB9B",
 }
 _TRACK_LABELS = {
     "shap":     "SHAP track",
@@ -48,18 +37,10 @@ _TRACK_LABELS = {
 class Evaluator:
 
     def __init__(self, bundle_path):
-        # Bundle path is the directory that ModelBundle.save() wrote.
         self.bundle_path = bundle_path
         self.bundle = ModelBundle.load(bundle_path)
 
-    # -----------------------------------------------------------------
-    # Public API
-    # -----------------------------------------------------------------
-
     def evaluate(self, holdout_df):
-        # Same shape as eval_holdout.py main(): drop NaN rows on the
-        # scaler's input features, apply the saved scaler, subset to
-        # the model's feature list, predict, score.
         bundle = self.bundle
         scaler_features = list(bundle.scaler.feature_names_in_)
         feature_list = list(bundle.feature_list)
@@ -68,8 +49,6 @@ class Evaluator:
         print(f"  Final model features ({len(feature_list)}): {feature_list}")
         print(f"  Scaler was fit on {len(scaler_features)} features")
 
-        # Drop rows with NaN in the scaler features. Same rule as
-        # training so the holdout pre-processing matches.
         n_before = len(holdout_df)
         df = holdout_df.dropna(subset=scaler_features).reset_index(drop=True)
         n_dropped = n_before - len(df)
@@ -86,13 +65,10 @@ class Evaluator:
         )
         X_for_model = X_scaled[feature_list]
 
-        # Inference (and timing)
         inference_time_ms = self._measure_inference_time(X_for_model)
         y_proba = bundle.model.predict(X_for_model)
         y_pred = (y_proba >= 0.5).astype(int)
 
-        # Per-session breakdown for diagnostic console output. Doesn't
-        # go into the Metrics object - that's the overall summary.
         self._print_per_session(df, y, y_pred)
 
         accuracy = accuracy_score(y, y_pred)
@@ -104,7 +80,6 @@ class Evaluator:
         per_sample_ms = inference_time_ms / max(len(X_for_model), 1)
         model_size_bytes = self._measure_model_size(bundle)
 
-        # Console summary identical in shape to eval_holdout.py
         print(f"\n=== Held-out evaluation ===")
         print(f"  Rows evaluated: {len(df)}")
         print(f"  Accuracy:       {accuracy:.4f}")
@@ -135,10 +110,6 @@ class Evaluator:
         )
 
     def roc_data(self, holdout_df):
-        # Returns the data needed to draw a ROC curve for this bundle:
-        # FPR / TPR arrays, AUC value, and the track name. Uses exactly
-        # the same preprocessing as evaluate() so the curve is computed
-        # from the same probabilities that produced the confusion matrix.
         bundle = self.bundle
         scaler_features = list(bundle.scaler.feature_names_in_)
         feature_list = list(bundle.feature_list)
@@ -167,7 +138,6 @@ class Evaluator:
         }
 
     def plot_roc(self, holdout_df, out_path):
-        # Single-track ROC plot, styled to match Figure 4.5 in the thesis.
         data = self.roc_data(holdout_df)
         self._draw_roc_figure(
             curves=[data],
@@ -179,14 +149,8 @@ class Evaluator:
         print(f"  Wrote ROC plot to {out_path}  (AUC = {data['auc']:.4f})")
         return data
 
-    # -----------------------------------------------------------------
-    # Static plotting helpers
-    # -----------------------------------------------------------------
-
     @staticmethod
     def plot_roc_comparison(roc_data_list, out_path):
-        # Draw all three tracks on the same axes. Pass a list of dicts
-        # returned by roc_data() - one per bundle.
         Evaluator._draw_roc_figure(
             curves=roc_data_list,
             main_title="ROC Curves - Track Comparison",
@@ -216,14 +180,11 @@ class Evaluator:
             spine.set_color(_SPINE_COLOR)
         ax.tick_params(colors="#4B5563")
 
-        # Two-line title: bold main + smaller subtitle
         ax.set_title(main_title, fontsize=13, fontweight="bold",
                      color=_TITLE_COLOR, pad=22)
         ax.text(0.5, 1.02, subtitle, transform=ax.transAxes,
                 ha="center", va="bottom", fontsize=10, color=_SUBT_COLOR)
 
-        # Custom legend to the right of the plot, each entry coloured to
-        # match the curve
         x0 = 1.04
         y = 0.92
         for c in curves:
@@ -245,23 +206,14 @@ class Evaluator:
                     facecolor=fig.get_facecolor())
         plt.close(fig)
 
-    # -----------------------------------------------------------------
-    # Private helpers
-    # -----------------------------------------------------------------
-
     def _measure_inference_time(self, X):
-        # Times a full predict() call. Run twice and keep the second
-        # measurement so any first-call lazy-init cost (JIT warmup,
-        # buffer allocation) doesn't pollute the number.
+        # Warm-up call first so lazy-init cost is excluded
         _ = self.bundle.model.predict(X.iloc[:1] if hasattr(X, "iloc") else X[:1])
         t0 = time.perf_counter()
         _ = self.bundle.model.predict(X)
         return (time.perf_counter() - t0) * 1000.0
 
     def _measure_model_size(self, bundle):
-        # Size of the model file on disk - the deployable artefact.
-        # If for some reason there's no model.txt (loaded from elsewhere)
-        # fall back to 0 so callers can still get the other metrics.
         model_path = os.path.join(self.bundle_path, "model.txt")
         if os.path.exists(model_path):
             return os.path.getsize(model_path)
@@ -269,9 +221,6 @@ class Evaluator:
 
     @staticmethod
     def _print_per_session(df, y, y_pred):
-        # Each held-out session reported separately so we can see
-        # whether the model degrades on a same-route session
-        # specifically vs a different-route session.
         if "session_id" not in df.columns:
             return
         print("\nPer-session results:")
@@ -285,8 +234,6 @@ class Evaluator:
                 acc = accuracy_score(sess_y, sess_pred)
                 print(f"  {sid[:65]:<65s} rows={mask.sum():>4d}  acc={acc:.4f}")
             else:
-                # Only one class present - accuracy is just "did we
-                # guess the single class correctly"
                 single = sess_y[0]
                 n_correct = (sess_pred == single).sum()
                 label = 'spoof' if single == 1 else 'legit'

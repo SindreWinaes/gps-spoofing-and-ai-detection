@@ -8,20 +8,6 @@
 # 
 #######################################################
 
-#
-# RankingCombiner.py
-# Fuses a SHAP ranking and a UbiQTree ranking into a single ordering.
-# Three methods are supported - rank sum (default), Borda count, and
-# geometric mean of scores. The choice is made via the `method` arg in
-# the constructor; combine() dispatches to the right private helper.
-#
-# Rank fusion is the standard approach when two rankers measure related
-# but not identical things. SHAP gives mean-|impact| per feature;
-# UbiQTree gives the same but with uncertainty quantification. By
-# combining them we get a feature ordering that both rankers agree on,
-# which is more robust than either signal alone.
-#
-
 import numpy as np
 
 from Pc_backend.Ml_pipeline.CombinedRanking import CombinedRanking
@@ -39,15 +25,7 @@ class RankingCombiner:
                     VALID_METHODS, method))
         self.method = method
 
-    # -----------------------------------------------------------------
-    # Public API
-    # -----------------------------------------------------------------
-
     def combine(self, shap, ubiq):
-        # Both result objects carry feature_names in the same order
-        # (FeatureRanker and UbiQTreeRanker were given the same list at
-        # construction). Sanity-check this so a silent mis-alignment
-        # can't produce a nonsense ranking.
         if list(shap.feature_names) != list(ubiq.feature_names):
             raise ValueError(
                 "RankingCombiner.combine: feature_names mismatch between "
@@ -67,7 +45,6 @@ class RankingCombiner:
         else:
             raise RuntimeError("unreachable")
 
-        # Console table similar to the SHAP / UbiQTree ones
         print(f"\nCombined ranking via {self.method}:")
         print(f"  {'rank':<5s}{'feature':<22s}{'score':>12s}")
         order = np.argsort(combined_ranks)
@@ -82,20 +59,11 @@ class RankingCombiner:
             method_used=self.method,
         )
 
-    # -----------------------------------------------------------------
-    # Fusion methods
-    # Each returns (combined_ranks, combined_scores) in feature_names order.
-    # -----------------------------------------------------------------
-
     def _rank_sum(self, shap_ranks, ubiq_ranks):
-        # Lower rank = better. Add the two rank positions; sort ascending.
-        # Score is the sum (lower = more important).
         scores = np.asarray(shap_ranks) + np.asarray(ubiq_ranks)
         return self._scores_to_ranks(scores, lower_is_better=True), scores
 
     def _borda_count(self, shap_ranks, ubiq_ranks):
-        # Each feature gets (n - rank + 1) points per ranker. Sum the
-        # points; higher total = more important. n = number of features.
         n = len(shap_ranks)
         shap_points = n - np.asarray(shap_ranks) + 1
         ubiq_points = n - np.asarray(ubiq_ranks) + 1
@@ -103,24 +71,13 @@ class RankingCombiner:
         return self._scores_to_ranks(scores, lower_is_better=False), scores
 
     def _geometric_mean(self, shap_scores, ubiq_scores):
-        # Geometric mean of the two raw importance scores. Less
-        # sensitive to outliers than a plain mean, and rewards features
-        # that both rankers consider important rather than one ranker
-        # liking loudly.
-        # Add a tiny epsilon so a zero on one side doesn't kill the product.
         eps = 1e-12
         scores = np.sqrt(
             (np.asarray(shap_scores) + eps) * (np.asarray(ubiq_scores) + eps))
         return self._scores_to_ranks(scores, lower_is_better=False), scores
 
-    # -----------------------------------------------------------------
-    # Helper: scores -> ranks
-    # -----------------------------------------------------------------
-
     @staticmethod
     def _scores_to_ranks(scores, lower_is_better):
-        # Turn a score array into a rank array (1 = best). Ties are
-        # broken by index order, which is deterministic across runs.
         scores = np.asarray(scores)
         if lower_is_better:
             order = np.argsort(scores)
@@ -133,9 +90,6 @@ class RankingCombiner:
 
 
 def ubiq_ranks_from(ubiq):
-    # Build a feature_names-ordered rank array from a UbiqResult.
-    # UbiqResult doesn't store ranks directly (since it carries the
-    # uncertainty info too), so we derive them from |mean|.
     abs_mean = np.abs(np.asarray(ubiq.mean))
     order = np.argsort(-abs_mean)
     ranks = np.zeros(len(abs_mean), dtype=int)

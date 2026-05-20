@@ -8,25 +8,9 @@
 # 
 #######################################################
 
-#
-# RouteCsv.py
-# Handles the route CSV file on the spoofer SD card. Used in both modes:
-#   - record mode writes the header + one row per fix
-#   - replay mode loads rows back into a list of GPS dicts
-#
-# Three header schemas are accepted on load so old route files still
-# replay after the schema change:
-#   NEW (12 cols, Device-A aligned): "Time, UTC Date, UTC Time, Label, Latitude, ..."
-#   MID (10 cols):                    "utc_date,utc_time,lat,lon,..."
-#   OLD ( 9 cols):                    "utc_time,lat,lon,..."
-# Writes only ever use the NEW schema.
-#
-
 import time
 
 
-# Must stay byte-for-byte equal to Device A's GPS-only column subset so
-# the two devices' logs are directly concatenable / comparable.
 RECORD_CSV_HEADER = (
     "Time, UTC Date, UTC Time, Label, Latitude, Longitude, Altitude,"
     " Speed, HDOP, Satelites, Course, Fix\n"
@@ -39,14 +23,10 @@ class RouteCsv:
         self.file_path = file_path
 
     def write_header(self):
-        # Truncates any existing file and drops in the header row
         with open(self.file_path, 'w') as f:
             f.write(RECORD_CSV_HEADER)
 
     def write_row(self, gps_data, label):
-        # Same comma-no-space data-row style as Device A's build_log_line(),
-        # so a row from this device parses with the same CSV reader code as
-        # a row from Device A (just with the accel columns absent).
         line = "{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
             time.time(),
             gps_data.get('utc_date', ''),
@@ -65,7 +45,6 @@ class RouteCsv:
             f.write(line)
 
     def load_route(self):
-        # Returns a list of GPS dicts. Empty list on any error.
         route = []
         try:
             f = open(self.file_path, 'r')
@@ -88,9 +67,6 @@ class RouteCsv:
                 try:
                     parts = [p.strip() for p in line.split(',')]
                     if schema == 'new':
-                        # Time(0), UTC Date(1), UTC Time(2), Label(3),
-                        # Lat(4), Lon(5), Alt(6), Speed(7), HDOP(8),
-                        # Sats(9), Course(10), Fix(11)
                         utc_date = parts[1]
                         utc_time = parts[2]
                         lat = float(parts[4])
@@ -148,9 +124,6 @@ class RouteCsv:
             return []
 
     def _detect_schema(self, header):
-        # NEW has both "label" and "latitude". MID has "utc_date" but no
-        # "label". OLD has only "utc_time". This lets old recordings keep
-        # working without manual conversion.
         if 'label' in header and 'latitude' in header:
             return 'new'
         elif 'utc_date' in header:

@@ -1,20 +1,3 @@
-#
-# ThesisPlots.py
-# Thesis-quality plots over the rankers' result objects. Same visual
-# style Sofie built for the preliminary work so the two pipeline runs
-# can be compared side-by-side in the thesis.
-#
-# Eight plots in total:
-#   1. shap_importance.png           bar+beeswarm (FeatureRanker output)
-#   2. shap_global_uncertainty.png   std / entropy / sign-stability of SHAP
-#   3. shap_violin_top3.png          per-feature SHAP distribution, top 3
-#   4. combined_ranking_plot.png     additive / geometric / reliability-weighted
-#   5. rank_agreement_scatter.png    SHAP rank vs UbiQTree rank
-#   6. ubiq_belief_plausibility.png  Dempster-Shafer bands
-#   7. confusion_matrix.png          per-track heatmap (on held-out set)
-#   8. summary_dashboard.png         per-track 3-panel summary
-#
-
 import os
 
 import matplotlib.pyplot as plt
@@ -27,10 +10,6 @@ matplotlib.use("Agg")
 
 class ThesisPlots:
 
-    # -----------------------------------------------------------------
-    # Shared utilities
-    # -----------------------------------------------------------------
-
     @staticmethod
     def _ensure_dir(path):
         d = os.path.dirname(path)
@@ -39,13 +18,11 @@ class ThesisPlots:
 
     @staticmethod
     def _entropy_per_feature(samples):
-        # Same per-feature entropy used by UbiQTree internally
         from scipy.stats import entropy as _entropy
         out = np.zeros(samples.shape[1])
         for i in range(samples.shape[1]):
             col = samples[:, i]
             if col.std() < 1e-12:
-                # All values identical - entropy is 0
                 out[i] = 0.0
                 continue
             hist, edges = np.histogram(col, bins=10, density=True)
@@ -55,14 +32,11 @@ class ThesisPlots:
 
     @staticmethod
     def _sign_stability_per_feature(samples, mean):
-        # Fraction of samples whose sign matches the mean's sign
         mean_sign = np.sign(mean)
         return np.mean(np.sign(samples) == mean_sign[np.newaxis, :], axis=0)
 
     @staticmethod
     def _ubiq_rank_array(ubiq_result):
-        # Build feature_names-ordered ranks from a UbiqResult.
-        # 1 = most important (by |mean SHAP|).
         abs_mean = np.abs(np.asarray(ubiq_result.mean))
         order = np.argsort(-abs_mean)
         ranks = np.zeros(len(abs_mean), dtype=int)
@@ -70,22 +44,10 @@ class ThesisPlots:
             ranks[feat_idx] = rank_pos
         return ranks
 
-    # -----------------------------------------------------------------
-    # 1. shap_importance.png - bar + manual beeswarm
-    # -----------------------------------------------------------------
-
     def shap_importance(self, shap_values, X_val, feature_names, save_path):
-        # `shap_values` is (n_rows, n_features) - the raw matrix the
-        # FeatureRanker cached. We compute mean(|SHAP|) for the bar and
-        # use the raw values for the beeswarm scatter below it.
-        #
-        # Layout: two panels stacked vertically so each panel uses the
-        # full figure width. With ~16 features the side-by-side layout
-        # crushed the labels when embedded in the thesis; stacking gives
-        # each panel twice the horizontal room.
         mean_abs = np.abs(shap_values).mean(axis=0)
         std_abs = np.abs(shap_values).std(axis=0)
-        order = np.argsort(mean_abs)  # ascending so largest ends up on top
+        order = np.argsort(mean_abs)
         n_feat = len(feature_names)
         y_pos = np.arange(n_feat)
         feat_labels = [feature_names[i] for i in order]
@@ -96,9 +58,7 @@ class ThesisPlots:
             gridspec_kw={'hspace': 0.18},
         )
 
-        # Top: bar with asymmetric error bars. Lower whisker is clipped
-        # at the mean so the visible error bar never crosses zero (which
-        # would be meaningless for a mean-of-absolute quantity).
+        # Clip the lower whisker at the mean so the error bar never crosses zero
         lower_err = np.minimum(std_abs[order], mean_abs[order])
         upper_err = std_abs[order]
         axes[0].barh(
@@ -116,9 +76,6 @@ class ThesisPlots:
         axes[0].set_xlim(left=0)
         axes[0].tick_params(axis='x', labelsize=11)
 
-        # Bottom: manual beeswarm - dot per (row, feature), coloured by
-        # the feature value. Same idea as shap.summary_plot but drawn
-        # inline so we can stack it under the bar in one figure.
         rng = np.random.RandomState(42)
         X_arr = X_val.values if hasattr(X_val, "values") else np.asarray(X_val)
         for i_pos, feat_idx in enumerate(order):
@@ -142,7 +99,6 @@ class ThesisPlots:
         axes[1].grid(axis='x', linestyle='--', alpha=0.3)
         axes[1].tick_params(axis='x', labelsize=11)
 
-        # Colorbar runs alongside the beeswarm (bottom) panel.
         cbar_ax = fig.add_axes([0.92, 0.08, 0.012, 0.36])
         sm = plt.cm.ScalarMappable(cmap='coolwarm',
                                    norm=plt.Normalize(vmin=0, vmax=1))
@@ -157,19 +113,7 @@ class ThesisPlots:
         plt.close()
         print(f"Saved SHAP importance plot to {save_path}")
 
-    # -----------------------------------------------------------------
-    # 2. shap_global_uncertainty.png - 3-panel
-    # -----------------------------------------------------------------
-
     def shap_global_uncertainty(self, shap_values, feature_names, save_path):
-        # SHAP equivalent of UbiQTreeRanker.plot_uncertainty_comparison.
-        # Here the "uncertainty" comes from variation across the validation
-        # rows (UbiQTree's came from Dirichlet tree resampling per row).
-        #
-        # Layout: three panels stacked vertically so each panel uses the
-        # full figure width. Each panel is sorted independently because
-        # each metric has its own ranking; the y-axis is therefore not
-        # shared across panels.
         mean_vals = shap_values.mean(axis=0)
         std = shap_values.std(axis=0)
         entropy = self._entropy_per_feature(shap_values)
@@ -182,7 +126,6 @@ class ThesisPlots:
             gridspec_kw={'hspace': 0.35},
         )
 
-        # Panel 1: Std of SHAP
         order = np.argsort(std)
         axes[0].barh([feature_names[i] for i in order], std[order],
                      color='orange', alpha=0.85, edgecolor='gray', linewidth=0.5)
@@ -193,7 +136,6 @@ class ThesisPlots:
         axes[0].tick_params(axis='x', labelsize=11)
         axes[0].grid(axis='x', alpha=0.2)
 
-        # Panel 2: Entropy
         order = np.argsort(entropy)
         axes[1].barh([feature_names[i] for i in order], entropy[order],
                      color='green', alpha=0.85, edgecolor='gray', linewidth=0.5)
@@ -204,7 +146,6 @@ class ThesisPlots:
         axes[1].tick_params(axis='x', labelsize=11)
         axes[1].grid(axis='x', alpha=0.2)
 
-        # Panel 3: Sign stability
         order = np.argsort(sign_stab)
         axes[2].barh([feature_names[i] for i in order], sign_stab[order],
                      color='purple', alpha=0.85, edgecolor='gray', linewidth=0.5)
@@ -221,8 +162,7 @@ class ThesisPlots:
         plt.close()
         print(f"Saved SHAP global uncertainty plot to {save_path}")
 
-        # Also save each panel as its own PNG so the thesis can include
-        # them as three normal-sized figures instead of one tall stack.
+        # Also save each panel as its own PNG
         base_dir = os.path.dirname(save_path) or '.'
         self._save_single_uncertainty_panel(
             std, feature_names, std.mean(),
@@ -246,8 +186,6 @@ class ThesisPlots:
         self, values, feature_names, mean_line,
         color, title, xlabel, save_path, xlim=None,
     ):
-        # One-panel uncertainty bar chart, sized to fit a single thesis
-        # figure environment at \linewidth.
         n_feat = len(feature_names)
         order = np.argsort(values)
         fig, ax = plt.subplots(figsize=(10, max(7, 0.55 * n_feat)))
@@ -268,10 +206,6 @@ class ThesisPlots:
         plt.savefig(save_path, dpi=120, bbox_inches='tight')
         plt.close()
         print(f"Saved per-panel uncertainty plot to {save_path}")
-
-    # -----------------------------------------------------------------
-    # 3. shap_violin_top3.png
-    # -----------------------------------------------------------------
 
     def shap_violin_top3(self, shap_values, feature_names, save_path, top_n=3):
         mean_abs = np.abs(shap_values).mean(axis=0)
@@ -305,14 +239,7 @@ class ThesisPlots:
         plt.close()
         print(f"Saved SHAP violin top-3 plot to {save_path}")
 
-    # -----------------------------------------------------------------
-    # 4. combined_ranking_plot.png - 3-panel
-    # -----------------------------------------------------------------
-
     def combined_ranking_3panel(self, shap_result, ubiq_result, save_path):
-        # Three rank-fusion variants side by side. RankingCombiner uses
-        # one of these methods to pick the combined-track feature order;
-        # showing all three lets the thesis compare them.
         feature_names = list(shap_result.feature_names)
         shap_imp = np.asarray(shap_result.mean_abs_shap)
         ubiq_imp = np.abs(np.asarray(ubiq_result.mean))
@@ -321,8 +248,6 @@ class ThesisPlots:
         eps = 1e-12
         additive = shap_imp + ubiq_imp
         geometric = np.sqrt((shap_imp + eps) * (ubiq_imp + eps))
-        # Reliability-weighted: SHAP importance times UbiQTree directional
-        # consistency - rewards features that BOTH matter AND are stable
         reliability = shap_imp * sign_stab
 
         fig, axes = plt.subplots(1, 3, figsize=(18, max(5, 0.4 * len(feature_names))))
@@ -344,10 +269,6 @@ class ThesisPlots:
         plt.close()
         print(f"Saved combined ranking plot to {save_path}")
 
-    # -----------------------------------------------------------------
-    # 5. rank_agreement_scatter.png
-    # -----------------------------------------------------------------
-
     def rank_agreement_scatter(self, shap_result, ubiq_result, save_path):
         feature_names = list(shap_result.feature_names)
         shap_ranks = np.asarray(shap_result.ranks)
@@ -361,11 +282,9 @@ class ThesisPlots:
                          cmap='plasma_r', s=120,
                          edgecolors='black', linewidth=0.5)
 
-        # Diagonal: perfect agreement
         plt.plot([1, n], [1, n], '--', color='gray', alpha=0.5,
                  label='Perfect agreement')
 
-        # Label every point
         for i, name in enumerate(feature_names):
             plt.annotate(name, (shap_ranks[i], ubiq_ranks[i]),
                          fontsize=8, xytext=(6, 5),
@@ -376,7 +295,7 @@ class ThesisPlots:
         plt.title('SHAP vs UBiQTree Rank Agreement')
         plt.grid(alpha=0.3)
         plt.gca().invert_yaxis()
-        plt.gca().invert_xaxis()   # rank 1 in top-left like Sofie's plot
+        plt.gca().invert_xaxis()
 
         self._ensure_dir(save_path)
         plt.tight_layout()
@@ -384,19 +303,8 @@ class ThesisPlots:
         plt.close()
         print(f"Saved rank agreement scatter to {save_path}")
 
-    # -----------------------------------------------------------------
-    # 6. ubiq_belief_plausibility.png
-    # -----------------------------------------------------------------
-
+    # Dempster-Shafer belief (5th pct) and plausibility (95th pct) per feature
     def belief_plausibility(self, ubiq_result, save_path):
-        # Dempster-Shafer style interpretation of the UbiQTree samples.
-        # For each feature we normalise |SHAP| samples to [0, 1] using
-        # the max across the whole matrix, then take:
-        #   belief        = 5th percentile  (lower bound of importance)
-        #   plausibility  = 95th percentile (upper bound of importance)
-        # The bar between them is the "uncertainty interval" - wide bars
-        # mean we are very unsure where the feature ranks; narrow bars
-        # are confident.
         samples = ubiq_result.samples
         feature_names = list(ubiq_result.feature_names)
 
@@ -414,7 +322,6 @@ class ThesisPlots:
         plausibility = np.percentile(normalized, 95, axis=0)
         mean_imp = abs_samples.mean(axis=0)
 
-        # Sort top-down by mean importance
         order = np.argsort(mean_imp)[::-1]
 
         fig, ax = plt.subplots(figsize=(12, max(5, 0.4 * len(feature_names))))
@@ -424,7 +331,6 @@ class ThesisPlots:
                     color='lightblue', alpha=0.75,
                     edgecolor='steelblue', linewidth=0.5)
 
-        # Belief and plausibility dots
         for y_pos, idx in enumerate(order):
             ax.scatter(belief[idx], y_pos, color='green', s=50, zorder=3)
             ax.scatter(plausibility[idx], y_pos, color='red', s=50, zorder=3)
@@ -437,7 +343,6 @@ class ThesisPlots:
         ax.set_xlim(0, 1)
         ax.grid(axis='x', alpha=0.3)
 
-        # Legend
         from matplotlib.lines import Line2D
         from matplotlib.patches import Patch
         legend_elements = [
@@ -454,10 +359,6 @@ class ThesisPlots:
         plt.savefig(save_path, dpi=120, bbox_inches='tight')
         plt.close()
         print(f"Saved belief-plausibility plot to {save_path}")
-
-    # -----------------------------------------------------------------
-    # 7. confusion_matrix.png
-    # -----------------------------------------------------------------
 
     def confusion_matrix(self, metrics, save_path, class_names=None):
         cm = np.asarray(metrics.confusion_matrix)
@@ -498,26 +399,20 @@ class ThesisPlots:
         plt.close()
         print(f"Saved confusion matrix to {save_path}")
 
-    # -----------------------------------------------------------------
-    # 8. summary_dashboard.png
-    # -----------------------------------------------------------------
-
     def summary_dashboard(self, shap_result, accum_result, metrics, save_path,
                           top_n=10):
         fig = plt.figure(figsize=(18, 6))
 
-        # Panel 1: SHAP importance top-n
         ax1 = fig.add_subplot(1, 3, 1)
         mean_abs = np.asarray(shap_result.mean_abs_shap)
         feature_names = list(shap_result.feature_names)
-        top_idx = np.argsort(-mean_abs)[:top_n][::-1]   # ascending for barh
+        top_idx = np.argsort(-mean_abs)[:top_n][::-1]
         ax1.barh([feature_names[i] for i in top_idx], mean_abs[top_idx],
                  color='steelblue', alpha=0.85)
         ax1.set_title(f'SHAP Importance (top {top_n})')
         ax1.set_xlabel('Mean |SHAP value|')
         ax1.grid(axis='x', alpha=0.3)
 
-        # Panel 2: Accumulation curve
         ax2 = fig.add_subplot(1, 3, 2)
         ax2.plot(accum_result.k_values, accum_result.accuracies,
                  'o-', color='steelblue', linewidth=2, markersize=5)
@@ -532,7 +427,6 @@ class ThesisPlots:
         ax2.legend(loc='lower right', fontsize=9)
         ax2.grid(alpha=0.3)
 
-        # Panel 3: Metrics table
         ax3 = fig.add_subplot(1, 3, 3)
         ax3.axis('off')
         rows = [

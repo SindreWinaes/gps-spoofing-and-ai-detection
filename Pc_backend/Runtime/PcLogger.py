@@ -8,22 +8,9 @@
 # 
 #######################################################
 
-#
-# PcLogger.py
-# Writes paired GPS + accel rows to a CSV. Header and column order
-# match the existing reciever.py output exactly so the downstream
-# DatasetMerger still picks the file up.
-#
-# An optional Prediction column gets appended when a classifier is
-# wired up. That column is NOT in the original schema, so the merge
-# pipeline ignores it (it only keeps the FEATURE_COLS it knows about).
-#
-
 from Pc_backend.Runtime.CsvWriter import CsvWriter
 
 
-# Same header reciever.py wrote, byte-for-byte. The Accel UTC column
-# is the anchor used for offline timeline merging with Device A's SD log.
 BASE_HEADER = [
     "Time", "UTC Time", "Label",
     "Latitude", "Longitude", "Altitude",
@@ -35,9 +22,6 @@ BASE_HEADER = [
     "Standard Deviation", "Energy", "Zero Crossings",
 ]
 
-# Columns to add when a classifier is in play. Optional - if the
-# Receiver wasn't given a ModelBundle, these stay off and the
-# header / row width match reciever.py exactly.
 CLASSIFIER_HEADER = ["Prediction", "Confidence"]
 
 
@@ -47,12 +31,8 @@ class PcLogger:
         self.csv_path = csv_path
         self.with_classifier = with_classifier
         self.writer = CsvWriter(csv_path)
-        # Keep the file handle open across rows. Each writerow() flushes,
-        # so a crash mid-run still keeps everything written so far.
         self.writer.open(mode="w", newline="")
         self.write_header()
-        # Re-open in append mode so subsequent writerow() calls add rows
-        # rather than truncate.
         self.writer.close()
         self.writer.open(mode="a", newline="")
 
@@ -63,9 +43,6 @@ class PcLogger:
         self.writer.writerow(header)
 
     def write_row(self, row):
-        # `row` is a PairedRow. The accel half may be None - we still
-        # write the GPS columns plus blanks for the accel side, matching
-        # the original reciever.py "GPS arrived before any accel" path.
         gps = row.gps
         accel = row.accel
 

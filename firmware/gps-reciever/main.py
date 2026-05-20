@@ -1,17 +1,3 @@
-#
-# main.py
-# Device A (legitimate Pytrack) entry point. Brings up the hardware,
-# calibrates the accelerometer, mounts the SD card, waits for a GPS
-# fix to name the log files, then loops:
-#
-#   accel bursts (half budget)  ->  GPS read  ->  accel bursts (other half)
-#       LoRa accel sends                              LoRa accel sends
-#                                                       SD log row
-#
-# The GPS LoRa send is intentionally DISABLED here - Device A's GPS
-# now lives exclusively in the SD log. See main loop comments for why.
-#
-
 import os
 import pycom
 from time import sleep
@@ -28,26 +14,13 @@ from GPS_receiver.AccelPipeline import AccelPipeline
 from GPS_receiver.SdLogger import SdLogger
 
 
-# Label byte on GPS LoRa packets if/when re-enabled. 0 = legit data.
+# 0 = legit data
 LABEL = 0
-
-# Each burst samples for ACCEL_BURST_MS (~20 samples @ 100 Hz). Short
-# enough to fit more burst+send cycles per main-loop iteration so the
-# accel LoRa stream arrives at the PC ~1 Hz instead of ~0.14 Hz.
 ACCEL_BURST_MS = 200
-
-# Number of accel burst+LoRa-send cycles per main-loop iteration. At
-# SF=10 each LoRa send blocks for ~540 ms airtime + 200 ms burst, so
-# each cycle costs ~740 ms wall-clock. 6 cycles = ~4.4 s of accel work
-# per loop, near the SF=10 airtime ceiling. Half are emitted before the
-# GPS read and half after, so accel coverage spans the whole loop
-# window rather than clumping after GPS.
 ACCEL_SENDS_PER_LOOP = 6
 
 
 def is_valid_gps(gps_data):
-    # Same bounds as the spoofer's is_valid_gps and the parser's
-    # internal sanity checks.
     if gps_data['fix'] not in [1, 2]:
         return False
     if gps_data['hdop'] is None or gps_data['hdop'] > 10.0:
@@ -62,11 +35,6 @@ def is_valid_gps(gps_data):
 
 
 def is_valid_date(utc_date):
-    # The L76 module reports the default GPS epoch (DDMMYY = "050180",
-    # 5 January 1980) until it has decoded enough of the satellite
-    # navigation message to know the real date. Reject that value here
-    # so the log filename and the utc_date column reflect the actual
-    # UTC date rather than the GPS startup default.
     if not utc_date or len(utc_date) != 6:
         return False
     if utc_date == '050180':
@@ -81,8 +49,6 @@ def is_valid_date(utc_date):
         return False
     if not (1 <= month <= 12):
         return False
-    # Two-digit year window. Project ran from 2025 onward, so any
-    # year before 25 is the GPS still using its rollover default.
     if year < 25:
         return False
     return True
@@ -90,10 +56,6 @@ def is_valid_date(utc_date):
 
 def run_accel_bursts(accel_pipeline, lora_tx, sd_logger, n_bursts,
                      burst_ms, accel_count, gps_data_for_utc=None):
-    # Run `n_bursts` short accel bursts back-to-back, each transmitting
-    # its own LoRa packet on the accel frequency. The raw-accel SD file
-    # is appended to during every burst so the 100 Hz raw record is
-    # unbroken. Returns (last_features, updated_accel_count).
     raw_f = None
     try:
         raw_f = open(sd_logger.raw_accel_path, "a")
@@ -121,16 +83,13 @@ def run_accel_bursts(accel_pipeline, lora_tx, sd_logger, n_bursts,
 
 
 def main():
-    # ---- Hardware ----
     py = Pycoproc(Pycoproc.PYTRACK)
     l76 = L76GNSS(py, timeout=30)
     lis = LIS2HH12(py)
 
     gps = GpsParser(l76)
 
-    # ---- Calibrate accelerometer at startup ----
-    # Device must sit STILL for ~2 sec (orange LED). Level is NOT
-    # required - calibration is orientation-invariant.
+    # device must sit still for ~2 s (orange LED)
     pycom.heartbeat(False)
     pycom.rgbled(0x808000)
     cal = AccelCalibration()
@@ -140,17 +99,12 @@ def main():
     accel_pipeline = AccelPipeline(lis, calibration=cal)
     lora_tx = LoRaTx(tx_power=14, spreading_factor=10)
 
-    # ---- SD card ----
     SdLogger.mount()
     accel_count = 0
     sd_logger = None
-
-    # Most-recent GPS dict the device has parsed. Used to stamp accel
-    # packets with A's UTC. Stays None until the first GPS fix; accel
-    # packets sent before that have UTC=0 and the PC pairs by wall-clock.
     last_gps = None
 
-    # ---- WARMUP: wait for first GPS fix so we can name the SD log file ----
+    # wait for first GPS fix to name the SD log file
     while sd_logger is None:
         gps_data = gps.read()
         if (gps_data and gps_data.get('utc_time')
@@ -184,8 +138,6 @@ def main():
     gps_count = 0
     last_logged_utc = None
 
-    # Split the burst budget half before / half after the GPS read so
-    # the accel stream covers the whole loop wall-clock window evenly.
     n_before = ACCEL_SENDS_PER_LOOP // 2
     n_after = ACCEL_SENDS_PER_LOOP - n_before
 
@@ -193,20 +145,17 @@ def main():
         try:
             print("\nReading Sensors...")
 
-            # --- Half of the accel bursts BEFORE the GPS read ---
             accel_data, accel_count = run_accel_bursts(
                 accel_pipeline, lora_tx, sd_logger,
                 n_before, ACCEL_BURST_MS, accel_count,
                 gps_data_for_utc=last_gps,
             )
 
-            # --- GPS read (typically ~1-2 s, capped at 5 s) ---
             gps_data = gps.read()
             if (gps_data and gps_data.get('utc_time')
                     and is_valid_date(gps_data.get('utc_date'))):
                 last_gps = gps_data
 
-            # --- Other half of the accel bursts AFTER the GPS read ---
             accel_data, accel_count = run_accel_bursts(
                 accel_pipeline, lora_tx, sd_logger,
                 n_after, ACCEL_BURST_MS, accel_count,
@@ -228,8 +177,7 @@ def main():
                     print("Invalid GPS reading, skipping")
                     continue
 
-                # Dedup: skip if parser didn't see a fresh fix this read
-                # cycle, or if this UTC time has already been logged.
+                # skip stale fix or already-logged UTC
                 if (not gps_data.get('new_fix', False)
                         or gps_data['utc_time'] == last_logged_utc):
                     pycom.rgbled(0x000080)
@@ -237,20 +185,7 @@ def main():
 
                 last_logged_utc = gps_data['utc_time']
 
-                # GPS LoRa send is DISABLED. Device A's GPS now lives
-                # exclusively in the SD log; the PC log is fed only by
-                # the spoofer's GPS + A's accel stream. Legit + spoof
-                # are merged offline using the Accel UTC anchor.
-                #
-                # Why: A and B both transmit GPS on 868.1 MHz. Both
-                # transmitting at the same time means the LoRa packets
-                # collide and one is destroyed - caused ~47% legit
-                # packet loss in earlier walks. Removing A's GPS LoRa
-                # leaves 868.1 to the spoofer, which is what the demo
-                # is meant to show anyway.
-                #
-                # To re-enable: uncomment the lora_tx.send_gps block
-                # and delete the gps_ok=True / gps_count+=1 lines.
+                # GPS LoRa send disabled; GPS captured to SD only
                 # gps_ok = lora_tx.send_gps(gps_data, LABEL)
                 gps_ok = True
                 gps_count += 1
@@ -271,7 +206,6 @@ def main():
                             accel_data['accel_std'],
                             accel_data['accel_energy']))
 
-                # -------- SAVE TO SD card --------
                 sd_logger.write_log_row(gps_data, accel_data, LABEL)
                 print("Logged to SD")
 
@@ -283,7 +217,6 @@ def main():
                 pycom.rgbled(0x000000)
                 sleep(0.5)
 
-            # Print stats every 10 GPS rows logged
             if gps_count > 0 and gps_count % 10 == 0:
                 stats = lora_tx.get_stats()
                 print("stats: {}".format(stats))

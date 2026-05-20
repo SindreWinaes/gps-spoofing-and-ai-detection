@@ -8,20 +8,6 @@
 # 
 #######################################################
 
-#
-# OnlineClassifier.py
-# Loads a saved ModelBundle and classifies single feature dicts in real
-# time. Mirrors what eval_holdout.py does row-by-row: select the
-# scaler's input columns, apply the scaler, slice down to the model's
-# feature subset, predict, return the spoof-class probability and the
-# 0/1 decision at threshold 0.5.
-#
-# The features dict passed to classify() is built by the Receiver from
-# a PairedRow - it uses the same CamelCase column names train.csv uses
-# (e.g. "Speed", "Roll Degrees", "Dynamic Magnitude") so the scaler and
-# model see exactly the columns they were trained on.
-#
-
 from datetime import datetime
 
 import numpy as np
@@ -31,7 +17,6 @@ from Pc_backend.Ml_pipeline.ModelBundle import ModelBundle
 from Pc_backend.Runtime.ClassificationResult import ClassificationResult
 
 
-# Decision threshold for the spoof class. Same value eval_holdout.py uses.
 SPOOF_THRESHOLD = 0.5
 
 
@@ -40,15 +25,9 @@ class OnlineClassifier:
     def __init__(self, bundle_path):
         self.bundle = ModelBundle.load(bundle_path)
         self.feature_list = list(self.bundle.feature_list)
-        # Columns the scaler was fitted on (superset of feature_list).
-        # We need ALL of these to apply the scaler correctly.
         self.scaler_features = list(self.bundle.scaler.feature_names_in_)
 
     def classify(self, features):
-        # `features` is a {column_name: value} dict. Missing scaler
-        # inputs return a "no decision" result rather than crashing -
-        # better to log "couldn't classify, accel was stale" than to
-        # blow up the whole receiver.
         missing = [c for c in self.scaler_features if c not in features]
         if missing:
             return ClassificationResult(
@@ -58,9 +37,6 @@ class OnlineClassifier:
                 timestamp=datetime.now().isoformat(),
             )
 
-        # Build a single-row DataFrame in scaler-input order. Doing it
-        # as a DataFrame (not a bare array) keeps sklearn's
-        # feature_names_in_ check happy on newer sklearn versions.
         X = pd.DataFrame([{c: features[c] for c in self.scaler_features}])
         X_scaled = pd.DataFrame(
             self.bundle.scaler.transform(X),
@@ -68,9 +44,6 @@ class OnlineClassifier:
         )
         X_for_model = X_scaled[self.feature_list]
 
-        # Booster.predict() returns the class-1 probability for binary
-        # objectives. LGBMClassifier.predict_proba() would give both
-        # columns, but the bundle stores a Booster after load().
         proba = self.bundle.model.predict(X_for_model)[0]
         prediction = int(proba >= SPOOF_THRESHOLD)
         confidence = float(proba if prediction == 1 else 1.0 - proba)
@@ -82,17 +55,9 @@ class OnlineClassifier:
             timestamp=datetime.now().isoformat(),
         )
 
-    # -----------------------------------------------------------------
-    # Diagnostic helpers (kept around for the EA diagram - the public
-    # classify() does both of these inline as one DataFrame op).
-    # -----------------------------------------------------------------
-
     def _select_features(self, features):
-        # Just the values in scaler-input order, as a list.
         return [features[c] for c in self.scaler_features]
 
     def _normalize(self, values):
-        # Apply the saved scaler to a values list. Returns a 1-D ndarray
-        # with one entry per scaler input column.
         arr = np.asarray(values).reshape(1, -1)
         return self.bundle.scaler.transform(arr).ravel()

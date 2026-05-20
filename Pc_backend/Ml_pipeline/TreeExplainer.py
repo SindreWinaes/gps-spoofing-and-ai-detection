@@ -8,25 +8,8 @@
 # 
 #######################################################
 
-#
-# TreeExplainer.py
-# Thin wrapper around shap.TreeExplainer. Present in the EA model to
-# document the SHAP dependency.
-#
-# Note: shap.TreeExplainer uses __new__ tricks internally to pick a
-# backend (LightGBM / XGBoost / sklearn) based on the model type, so
-# subclassing it is fragile. Re-exporting as a module-level alias keeps
-# every shap version working identically.
-#
-# Usage stays identical to shap:
-#     from Pc_backend.Ml_pipeline.TreeExplainer import TreeExplainer
-#     explainer = TreeExplainer(lgbm_model)
-#     shap_values = explainer.shap_values(X_val)
-#
-
 import shap as _shap
 
 
-# Alias rather than subclass - see note above. The EA model lists this as
-# our class; this line is how that class points at the real shap one.
+# Alias rather than subclass: shap.TreeExplainer uses __new__ internally
 TreeExplainer = _shap.TreeExplainer

@@ -8,23 +8,6 @@
 # 
 #######################################################
 
-#
-# UbiQTreeRanker.py
-# Wraps UBiQTree's ExplainerClassification so the ML pipeline can produce
-# a feature ranking with uncertainty bounds in addition to plain SHAP.
-#
-# UBiQTree's explain() works on ONE instance at a time and gives back a
-# SHAP distribution (Dirichlet-resampled trees). For a GLOBAL feature
-# ranking we run explain() on a subsample of the validation set and
-# stack the per-row distributions into one big matrix. That stacked
-# matrix is what aggregate stats (mean / std / CI / entropy /
-# sign_stability) are computed from, which captures both within-row
-# tree-sampling uncertainty AND across-row instance variation.
-#
-# Defaults are tuned for thesis-grade runtime (~1-2 minutes on a laptop).
-# Bump n_subsample / n_samples for sharper bounds if you have time.
-#
-
 import os
 
 import numpy as np
@@ -39,16 +22,12 @@ class UbiQTreeRanker:
 
     def __init__(self, rf_model, X_train, y_train, feature_names,
                  beta=5.0, random_state=42):
-        # rf_model must already be fitted and must have an
-        # `estimators_` attribute. RandomForestClassifier is the
-        # natural choice, but anything with the same shape works
-        # (e.g. ExtraTreesClassifier).
         self.rf_model = rf_model
         self.feature_names = list(feature_names)
         self.X_train = X_train
         self.y_train = y_train
 
-        # Convert to ndarray if pandas - UBiQTree indexes positionally
+        # UBiQTree indexes positionally
         X_arr = X_train.values if hasattr(X_train, "values") else np.asarray(X_train)
         y_arr = y_train.values if hasattr(y_train, "values") else np.asarray(y_train)
 
@@ -60,14 +39,8 @@ class UbiQTreeRanker:
             random_state=random_state,
         )
 
-    # -----------------------------------------------------------------
-    # Ranking
-    # -----------------------------------------------------------------
-
     def rank(self, X_val, n_samples=100, alpha=1.0,
              n_subsample=20, class_idx=1, random_state=42):
-        # Pull a deterministic subsample of X_val to keep runtime sane.
-        # If X_val is small enough, use it all.
         X_arr = X_val.values if hasattr(X_val, "values") else np.asarray(X_val)
         n_rows = len(X_arr)
 
@@ -82,8 +55,6 @@ class UbiQTreeRanker:
               f"= {len(X_sub) * n_samples} SHAP evaluations")
         print(f"  alpha={alpha}, class_idx={class_idx}")
 
-        # Run explain() on each subsampled row and stack the per-row
-        # `samples` matrices. UBiQTree's explain() expects shape (1, n_features).
         all_samples = []
         for i in range(len(X_sub)):
             row = X_sub[i:i + 1]
@@ -93,16 +64,13 @@ class UbiQTreeRanker:
                 alpha=alpha,
                 class_idx=class_idx,
             )
-            # samples shape per call: (n_samples, n_features)
             all_samples.append(result["samples"])
 
-        # Stack -> (n_rows * n_samples, n_features). This is the
-        # combined "hypothesis space" we aggregate stats from.
         stacked = np.vstack(all_samples)
 
         mean = stacked.mean(axis=0)
         std = stacked.std(axis=0)
-        ci_95 = np.percentile(stacked, [2.5, 97.5], axis=0).T   # shape (n_features, 2)
+        ci_95 = np.percentile(stacked, [2.5, 97.5], axis=0).T
         entropy = self._compute_entropy(stacked)
         sign_stability = self._compute_sign_stability(stacked, mean)
 
@@ -116,7 +84,6 @@ class UbiQTreeRanker:
             samples=stacked,
         )
 
-        # Print a ranking table similar to the SHAP one
         print("\nUbiQTree ranking by |mean SHAP|:")
         print(f"  {'rank':<5s}{'feature':<22s}{'|mean|':>10s}{'std':>10s}{'sign_stab':>12s}")
         for i, (feat, val) in enumerate(result.ranked_by_mean_abs(), start=1):
@@ -126,14 +93,8 @@ class UbiQTreeRanker:
 
         return result
 
-    # -----------------------------------------------------------------
-    # Stats helpers (matches UBiQTree's internal versions)
-    # -----------------------------------------------------------------
-
     @staticmethod
     def _compute_entropy(samples):
-        # Per-feature explanation entropy. Histogram each column, treat
-        # the bin probabilities as a discrete distribution, compute entropy.
         from scipy.stats import entropy as _entropy
         out = np.zeros(samples.shape[1])
         for i in range(samples.shape[1]):
@@ -144,22 +105,10 @@ class UbiQTreeRanker:
 
     @staticmethod
     def _compute_sign_stability(samples, mean):
-        # Fraction of samples that share the sign of the mean for each feature.
-        # Close to 1 = feature consistently pushes the prediction the same way.
         mean_sign = np.sign(mean)
         return np.mean(np.sign(samples) == mean_sign[np.newaxis, :], axis=0)
 
-    # -----------------------------------------------------------------
-    # Plots
-    # Re-implemented here (rather than calling UBiQTree's plot methods)
-    # because UBiQTree's versions save to hardcoded filenames and call
-    # plt.show() - both are awkward for a thesis pipeline that wants to
-    # write to specific paths.
-    # -----------------------------------------------------------------
-
     def plot_uncertainty_bars(self, result, save_path):
-        # Horizontal bar chart of mean SHAP per feature, with std error bars.
-        # Ordered ascending so the biggest |mean| ends up at top after invert.
         order = np.argsort(result.mean)
         names_ord = [result.feature_names[i] for i in order]
 
@@ -181,16 +130,12 @@ class UbiQTreeRanker:
         print(f"Saved UbiQTree uncertainty bars to {save_path}")
 
     def plot_uncertainty_comparison(self, result, save_path):
-        # Three stacked horizontal bars: std, entropy, sign_stability.
-        # Same idea as UBiQTree's plot_uncertainty_comparison but writes
-        # to a file path the caller chooses.
         order = np.argsort(result.mean)
         names_ord = [result.feature_names[i] for i in order]
 
         fig, axes = plt.subplots(3, 1, figsize=(12, 14))
         colors = plt.cm.plasma(np.linspace(0, 1, len(names_ord)))
 
-        # Std
         axes[0].barh(names_ord, result.std[order],
                      color=colors, alpha=0.85, edgecolor='gray', linewidth=0.5)
         axes[0].axvline(np.mean(result.std), color='red', linestyle='--', alpha=0.7)
@@ -198,7 +143,6 @@ class UbiQTreeRanker:
         axes[0].set_xlabel('Magnitude of uncertainty')
         axes[0].grid(axis='x', alpha=0.2)
 
-        # Entropy
         axes[1].barh(names_ord, result.entropy[order],
                      color=colors, alpha=0.85, edgecolor='gray', linewidth=0.5)
         axes[1].axvline(np.mean(result.entropy), color='red', linestyle='--', alpha=0.7)
@@ -206,14 +150,12 @@ class UbiQTreeRanker:
         axes[1].set_xlabel('Entropy value')
         axes[1].grid(axis='x', alpha=0.2)
 
-        # Sign stability
         axes[2].barh(names_ord, result.sign_stability[order],
                      color=colors, alpha=0.85, edgecolor='gray', linewidth=0.5)
         axes[2].set_xlim(0, 1)
         axes[2].set_title('Sign stability (direction consistency)', pad=8)
         axes[2].set_xlabel('Probability of consistent direction')
         axes[2].grid(axis='x', alpha=0.2)
-        # Confidence-threshold guide lines
         axes[2].axvline(0.9, color='green', linestyle='--', linewidth=1, alpha=0.8)
         axes[2].axvline(0.7, color='orange', linestyle='--', linewidth=1, alpha=0.8)
         axes[2].axvline(0.4, color='red', linestyle='--', linewidth=1, alpha=0.8)
@@ -231,8 +173,6 @@ class UbiQTreeRanker:
         print(f"Saved UbiQTree uncertainty comparison to {save_path}")
 
     def plot_uncertainty_distribution(self, result, feature_idx, save_path):
-        # Per-feature density plot of the SHAP distribution. Useful for
-        # eyeballing whether a feature's SHAP is unimodal, bimodal, etc.
         from scipy.stats import gaussian_kde
 
         if result.samples is None:
@@ -257,7 +197,6 @@ class UbiQTreeRanker:
         plt.axvspan(ci_low, ci_high, alpha=0.25, color='skyblue', label='95% CI')
         plt.axvline(0, color='black', linestyle=':', alpha=0.7, lw=1)
 
-        # Annotations
         plt.text(0.01, 0.92,
                  f"Std = {std_val:.3f}\nSign stability = {sign_stab:.1%}",
                  transform=plt.gca().transAxes,

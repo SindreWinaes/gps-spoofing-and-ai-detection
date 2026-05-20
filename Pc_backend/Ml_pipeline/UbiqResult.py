@@ -8,16 +8,6 @@
 # 
 #######################################################
 
-#
-# UbiqResult.py
-# Pure data holder for what UbiQTreeRanker.rank() returns. UBiQTree's
-# explain() doesn't just give a single SHAP value per feature - it gives
-# a distribution from Dirichlet-resampled trees. We keep all those
-# distribution stats so the analysis can show "feature X is important
-# AND its sign is stable across hypothesis samples", not just "feature
-# X has a high mean SHAP".
-#
-
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -27,32 +17,18 @@ import pandas as pd
 @dataclass
 class UbiqResult:
     feature_names: list = field(default_factory=list)
-    # Per-feature mean SHAP (signed) across n_samples - shape (n_features,)
     mean: np.ndarray = None
-    # Per-feature std across n_samples - shape (n_features,)
     std: np.ndarray = None
-    # 95% confidence interval per feature - shape (n_features, 2)
-    # ci_95[i] = (lower, upper)
     ci_95: np.ndarray = None
-    # Entropy of the SHAP distribution per feature - higher = noisier signal
     entropy: np.ndarray = None
-    # Fraction of samples that share the sign of mean[i]. Close to 1 =
-    # the feature consistently pushes the prediction the same way.
     sign_stability: np.ndarray = None
-    # The full n_samples x n_features SHAP sample matrix (kept for
-    # plotting / re-aggregation; can be None if memory is tight).
     samples: np.ndarray = None
 
     def ranked_by_mean_abs(self):
-        # [(feature, |mean|)...] sorted descending. Closest analogue to
-        # ShapResult.ranked_by_mean_abs() so combining is straightforward.
         pairs = list(zip(self.feature_names, np.abs(self.mean)))
         return sorted(pairs, key=lambda kv: kv[1], reverse=True)
 
     def ranked_by_sign_stability(self):
-        # [(feature, sign_stability)...] sorted descending. Useful for
-        # spotting features whose SHAP value flips sign across samples -
-        # those are unreliable even if their |mean| is high.
         pairs = list(zip(self.feature_names, self.sign_stability))
         return sorted(pairs, key=lambda kv: kv[1], reverse=True)
 

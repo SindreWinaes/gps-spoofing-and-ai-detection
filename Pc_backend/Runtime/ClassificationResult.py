@@ -8,14 +8,6 @@
 # 
 #######################################################
 
-#
-# ClassificationResult.py
-# What OnlineClassifier.classify() hands back: the predicted class
-# (0 = legit, 1 = spoof), the model's confidence (probability for the
-# predicted class), the exact features it used, and a wall-clock
-# timestamp.
-#
-
 from dataclasses import dataclass, field
 
 

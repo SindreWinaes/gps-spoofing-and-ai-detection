@@ -8,25 +8,13 @@
 # 
 #######################################################
 
-#
-# GravitySeparator.py
-# Splits the raw accel vector into a slow "gravity" component and the
-# remaining "dynamic" motion using a low-pass EMA. Renamed from
-# GravitySeperator -> GravitySeparator for the diagram (typo fix).
-#
-
 import math
 
 
 class GravitySeparator:
-
-    # Uses an exponential moving average low-pass filter to estimate the gravity
-    # vector, then subtracts it from each sample to get dynamic acceleration.
+    """Splits accel into gravity (EMA low-pass) and dynamic components."""
 
     def __init__(self, alpha=0.2):
-        # alpha: filter smoothing factor (0.0 to 1.0).
-        # Lower = smoother gravity estimate, slower response to tilt.
-        # Higher = noisier gravity, faster response to tilt.
         self.alpha = alpha
 
         self.grav_x = 0.0

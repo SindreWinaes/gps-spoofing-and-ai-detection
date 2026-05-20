@@ -8,12 +8,6 @@
 # 
 #######################################################
 
-#
-# LoRaTx.py
-# Sends GPS and accel packets over LoRa on two separate EU868 channels.
-# GPS goes on 868.1 MHz, accel on 868.3 MHz so the streams don't collide.
-#
-
 from network import LoRa
 import socket
 import struct
@@ -27,20 +21,12 @@ class LoRaTx:
     FREQ_GPS = 868100000
     FREQ_ACCEL = 868300000
 
-    # GPS_FORMAT tail: I = utc_date (DDMMYY as uint32), f = utc_time (HHMMSS.SSS as float).
-    # The PC receiver uses these to log real GPS UTC for both legit and spoofed streams.
     GPS_FORMAT = 'BBfffffifiIf'
-
-    # ACCEL_FORMAT mirrors GPS_FORMAT's UTC tail so the PC can align accel rows
-    # with GPS rows on a shared timeline. When the device has no fix yet, the
-    # tail is zeros and the PC pairs by wall-clock arrival.
     ACCEL_FORMAT = 'BfffffffffffIf'
 
     def __init__(self, tx_power=14, spreading_factor=10):
-        # EU868 region radio init
         self.lora = LoRa(mode=LoRa.LORA, region=LoRa.EU868)
 
-        # Start tuned to the GPS frequency. send_accel() swaps to ACCEL and back.
         self.lora.frequency(self.FREQ_GPS)
         self.lora.bandwidth(LoRa.BW_125KHZ)
         self.lora.sf(spreading_factor)
@@ -53,7 +39,6 @@ class LoRaTx:
         self.send_failures = 0
 
     def _send_packet(self, packed):
-        # Blocking send with success/fail counting
         try:
             self.s.setblocking(True)
             bytes_sent = self.s.send(packed)
@@ -74,9 +59,6 @@ class LoRaTx:
 
     @staticmethod
     def _parse_utc(gps_data):
-        # Pull UTC fields out of a GpsParser.read() dict. Defaults to (0, 0.0)
-        # when the dict is None or fields aren't set yet. The PC treats (0, 0.0)
-        # as "no UTC, pair by wall clock".
         utc_date_int = 0
         utc_time_float = 0.0
         if not gps_data:
@@ -100,7 +82,6 @@ class LoRaTx:
         return utc_date_int, utc_time_float
 
     def send_gps(self, gps_data, label):
-        # Pack a GPS dict and send on FREQ_GPS
         try:
             utc_date_int, utc_time_float = self._parse_utc(gps_data)
 
@@ -126,8 +107,6 @@ class LoRaTx:
             return False
 
     def send_accel(self, accel_data, gps_data_for_utc=None):
-        # Swap to ACCEL frequency, send, swap back to GPS frequency so the
-        # next send_gps() doesn't drift to the accel channel.
         try:
             self.lora.frequency(self.FREQ_ACCEL)
 
@@ -159,7 +138,6 @@ class LoRaTx:
 
         except Exception as e:
             print("Accel pack error: {}".format(e))
-            # Best-effort restore on error so the next GPS send still works
             try:
                 self.lora.frequency(self.FREQ_GPS)
             except Exception:

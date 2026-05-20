@@ -8,11 +8,6 @@
 # 
 #######################################################
 
-#
-# GpsParser.py
-# Wraps the L76GNSS driver and parses NMEA into a typed GPS fix dict.
-#
-
 import time
 from time import sleep
 
@@ -20,21 +15,15 @@ from time import sleep
 class GpsParser:
 
     def __init__(self, gps):
-        # gps is an L76GNSS driver instance from the Pycom library
         self.gps = gps
 
-        # Position in decimal degrees
         self.lat = None
         self.lon = None
         self.alt = None
 
-        # GPS-derived speed in km/h (computed from position deltas, can be noisy)
         self.speed = None
-
-        # HDOP: lower = better fix accuracy
         self.hdop = None
 
-        # Fix metadata
         self.num_sats = 0
         self.course = None
         self.fix_quality = 0
@@ -42,11 +31,9 @@ class GpsParser:
         self.utc_time = None
         self.utc_date = None
 
-        # Set True when read() picks up a fix with a UTC time we haven't seen
         self._got_new_fix = False
 
     def read(self):
-        # Read NMEA for up to 5 seconds, parse what we get, return a fix dict
         raw_data = b''
         self._got_new_fix = False
 
@@ -56,7 +43,6 @@ class GpsParser:
             chunk = self.gps._read()
             raw_data += chunk.lstrip(b'\n\n').rstrip(b'\n\n')
 
-            # ~500 bytes is usually one full NMEA sentence
             if len(raw_data) > 500:
                 try:
                     decoded = raw_data.decode('ascii', 'ignore')
@@ -83,11 +69,9 @@ class GpsParser:
 
     def _parse_raw_data(self, data):
         for line in data.replace('\r', '').split('\n'):
-            # Only parse complete sentences starting with $
             if not line.startswith('$'):
                 continue
 
-            # Drop checksum so the last field doesn't get junk appended
             if '*' in line:
                 line = line[:line.index('*')]
 
@@ -102,12 +86,10 @@ class GpsParser:
                 pass
 
     def _parse_gga(self, line):
-        # GGA gives position, fix quality, sat count, HDOP, altitude
         p = line.split(',')
 
         if len(p) >= 15:
             if p[1] and len(p[1]) >= 9:
-                # New fix only when UTC time advances
                 old_time = self.utc_time
                 self.utc_time = p[1]   # HHMMSS.SSS
                 if self.utc_time != old_time:
@@ -122,13 +104,11 @@ class GpsParser:
 
             if p[7]:
                 sats = int(p[7])
-                # No GNSS constellation shows more than ~24 sats at once
                 if 0 <= sats <= 24:
                     self.num_sats = sats
 
             if p[8]:
                 hdop = float(p[8])
-                # Valid HDOP is roughly 0.5 to 50
                 if 0.0 < hdop < 50.0:
                     self.hdop = hdop
 
@@ -136,7 +116,6 @@ class GpsParser:
                 self.alt = float(p[9])
 
     def _parse_rmc(self, line):
-        # RMC gives speed (knots), course, and UTC date
         p = line.split(',')
 
         if len(p) >= 10:
@@ -154,7 +133,6 @@ class GpsParser:
                 self.utc_date = p[9]   # DDMMYY
 
     def _parse_vtg(self, line):
-        # VTG gives speed in km/h directly (preferred over RMC's knots)
         p = line.split(',')
 
         if len(p) >= 8:

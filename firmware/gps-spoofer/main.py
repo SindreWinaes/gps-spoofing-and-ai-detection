@@ -1,11 +1,3 @@
-#
-# main.py
-# Device B (spoofer) entry point. Brings up the hardware, mounts the SD
-# card, reads the mode file, and hands off to either RouteRecorder
-# (record a fresh route) or RouteReplayer (loop a recorded route and
-# transmit each point as a spoofed GPS packet).
-#
-
 import os
 import pycom
 from machine import SD
@@ -20,16 +12,11 @@ from GPS_spoofer.RouteRecorder import RouteRecorder
 from GPS_spoofer.RouteReplayer import RouteReplayer
 
 
-# Device B identity. Used as the label byte sent in every replayed GPS
-# LoRa packet so the PC receiver can mark each row 0 (legit) vs 1
-# (spoof) for ML training.
+# 1 = spoof label byte
 SPOOF_LABEL = 1
 
 
 def _mount_sd():
-    # Mount /sd. 'already mounted' raises after a soft reset - swallow
-    # so the device keeps going; any real SD failure surfaces on the
-    # first I/O.
     sd = SD()
     try:
         os.mount(sd, '/sd')
@@ -38,7 +25,6 @@ def _mount_sd():
 
 
 def main():
-    # ---- Hardware ----
     py = Pycoproc(Pycoproc.PYTRACK)
     l76 = L76GNSS(py, timeout=60)
     gps = GpsParser(l76)
@@ -47,10 +33,9 @@ def main():
     _mount_sd()
 
     pycom.heartbeat(False)
-    pycom.rgbled(0x000080)   # blue = booting
+    pycom.rgbled(0x000080)
     print("Device B starting...")
 
-    # ---- Decide what to do ----
     mode, filename = ModeReader().read_mode()
     print("Mode: " + mode)
 
@@ -63,8 +48,6 @@ def main():
             if replayer.load_route(filename):
                 replayer.run()
             else:
-                # load_route already printed why; just flash red so an
-                # operator looking at the device knows something went wrong.
                 pycom.rgbled(0xFF0000)
 
         else:

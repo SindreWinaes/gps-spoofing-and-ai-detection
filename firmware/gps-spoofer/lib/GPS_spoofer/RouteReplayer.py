@@ -8,27 +8,12 @@
 # 
 #######################################################
 
-#
-# RouteReplayer.py
-# Replay mode: loads a previously recorded route from SD and loops
-# through it forever, sending one GPS-only LoRa packet per point with
-# label=1 ("spoofed"). When it hits the end of the route it reverses
-# direction so the spoofer keeps emitting plausible-looking motion
-# without snapping back to the start.
-#
-# No accelerometer packets are sent here - those still come from Device
-# A in real time. The whole point of the project is that the spoofer
-# can't fake the accelerometer stream.
-#
-
 import pycom
 from time import sleep
 
 from GPS_spoofer.RouteCsv import RouteCsv
 
 
-# Seconds between consecutive replay sends. ~2.5 s lines up with the
-# legit Device A's GPS cadence so the two streams interleave naturally.
 REPLAY_INTERVAL_S = 2.5
 
 
@@ -43,8 +28,6 @@ class RouteReplayer:
         self.packet_count = 0
 
     def load_route(self, filename):
-        # Loads /sd/<filename> via RouteCsv. Returns True if at least one
-        # point was loaded so the caller can decide whether to start run().
         csv = RouteCsv("/sd/{}".format(filename))
         self.route = csv.load_route()
         if not self.route:
@@ -53,9 +36,6 @@ class RouteReplayer:
         return True
 
     def run(self):
-        # Top-level replay loop. Bounces off both ends of the route so
-        # we never go off-array and so the motion looks like a there-and-
-        # back walk rather than a teleport.
         if not self.route:
             print("No route loaded - call load_route() first.")
             return
@@ -67,7 +47,6 @@ class RouteReplayer:
             gps_data = self.route[self.idx]
             self.idx += self.direction
 
-            # Bounce at boundaries
             if self.idx >= len(self.route):
                 self.idx = len(self.route) - 2 if len(self.route) > 1 else 0
                 self.direction = -1
@@ -81,11 +60,10 @@ class RouteReplayer:
 
             if success:
                 self.packet_count += 1
-                pycom.rgbled(0x800000)  # solid red while spoofing
+                pycom.rgbled(0x800000)
                 print("Replayed point {}/{} - {:.6f}, {:.6f}".format(
                     self.idx, len(self.route), gps_data['lat'], gps_data['lon']))
             else:
-                # Brief red blink on send failure
                 print("Send failed")
                 pycom.rgbled(0x000000)
                 sleep(0.1)

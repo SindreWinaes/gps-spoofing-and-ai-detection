@@ -8,32 +8,18 @@
 # 
 #######################################################
 
-#
-# RouteRecorder.py
-# Record mode: waits for a GPS fix, names the route file by the first
-# fix's UTC, then loops appending one CSV row per fresh fix until
-# stopped. No LoRa transmission - this is purely about capturing a real
-# walk that can later be replayed by RouteReplayer.
-#
-# Record-mode Label column = 0 (the recording itself is legitimate GPS
-# data; the LABEL=1 spoof identity only takes effect during replay
-# transmission).
-#
-
 import pycom
 from time import sleep
 
 from GPS_spoofer.RouteCsv import RouteCsv
 
 
-# Norway-region GPS bounds. Stops obviously-garbage fixes (HDOP huge,
-# wrong continent) from ending up in the recorded route.
+# Norway-region GPS bounds
 LAT_MIN, LAT_MAX = 50.0, 72.0
 LON_MIN, LON_MAX = 4.0, 32.0
 HDOP_MAX = 10.0
 SATS_MIN, SATS_MAX = 3, 24
 
-# Label used when writing rows during record mode. Recording is legit.
 RECORD_LABEL = 0
 
 
@@ -46,15 +32,6 @@ class RouteRecorder:
         self.route_file_path = None
 
     def wait_for_fix(self):
-        # Blocks (with blue LED blink) until the GPS parser returns a fix
-        # that has both UTC date and time. GpsParser.read() already blocks
-        # for ~1 s internally so no extra sleep is needed here.
-        #
-        # The L76 module reports the default GPS epoch (DDMMYY = "050180",
-        # 5 January 1980) until it has decoded enough of the satellite
-        # navigation message to know the real date. We reject that value
-        # here so the recording filename and the utc_date column reflect
-        # the actual UTC date and not the GPS startup default.
         print("Waiting for GPS fix...")
         blink_state = False
 
@@ -67,17 +44,13 @@ class RouteRecorder:
                     and self._is_valid_date(gps_data['utc_date'])):
                 print("GPS fix acquired (sats={}, hdop={}, date={})".format(
                     gps_data['sats'], gps_data['hdop'], gps_data['utc_date']))
-                pycom.rgbled(0x000080)  # solid blue
+                pycom.rgbled(0x000080)
                 return gps_data
 
             blink_state = not blink_state
             pycom.rgbled(0x000080 if blink_state else 0x000000)
 
     def _is_valid_date(self, utc_date):
-        # Accepts DDMMYY strings that look like a real present-day date.
-        # Rejects None, empty, the wrong length, the GPS startup default
-        # "050180", and any 2-digit year that falls outside a plausible
-        # window for this project.
         if not utc_date or len(utc_date) != 6:
             return False
         if utc_date == '050180':
@@ -92,16 +65,11 @@ class RouteRecorder:
             return False
         if not (1 <= month <= 12):
             return False
-        # Two-digit year window. Project ran from 2025 onward, so any
-        # year before 25 is the GPS still using its rollover default.
         if year < 25:
             return False
         return True
 
     def run(self):
-        # Top-level record loop. Waits for fix -> opens file -> records
-        # until interrupted. Each row only written when a brand-new UTC
-        # time is seen, so duplicates from repeated reads are dropped.
         print("Mode: RECORD")
 
         gps_data = self.wait_for_fix()
@@ -122,12 +90,10 @@ class RouteRecorder:
         while True:
             gps_data = self.gps.read()
 
-            # Skip if the parser didn't produce a new fix this read cycle
             if not gps_data.get('new_fix', False):
                 sleep(1)
                 continue
 
-            # Skip duplicates - only record when UTC time advances
             if gps_data['utc_time'] == self.last_recorded_utc:
                 sleep(1)
                 continue
@@ -156,9 +122,6 @@ class RouteRecorder:
             sleep(1)
 
     def _build_record_line(self, gps_data, label):
-        # Kept here per the EA diagram for diagnostics; the actual write
-        # path goes through RouteCsv.write_row(). Returns the same CSV
-        # row string that would be written to disk.
         import time
         return "{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
             time.time(),
@@ -176,8 +139,6 @@ class RouteRecorder:
         )
 
     def _is_valid_gps(self, gps_data):
-        # Mirrors Device A's filter so legit and spoof recordings are
-        # held to the same quality bar.
         if gps_data['fix'] not in [1, 2]:
             return False
         if gps_data['hdop'] is None or gps_data['hdop'] > HDOP_MAX:

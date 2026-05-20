@@ -8,14 +8,6 @@
 # 
 #######################################################
 
-#
-# AccelPipeline.py
-# Pulls accel samples off the LIS2HH12, runs each one through the full
-# processing chain (calibration -> gravity separation -> world frame ->
-# jerk + windowed stats) and hands back a feature dict for the LoRa
-# packet. Renamed from AccelSensor -> AccelPipeline for the diagram.
-#
-
 import time
 
 from GPS_receiver.AccelCalibration import AccelCalibration
@@ -31,49 +23,39 @@ class AccelPipeline:
         self.accel = accel
         self.calibration = calibration
 
-        # alpha for gravity EMA tuned for 100 Hz sampling:
-        # tau ~= T/alpha ~= 0.01/0.02 = 0.5 s (cutoff ~0.32 Hz)
         self.grav_sep = GravitySeparator(alpha=0.02)
         self.world_tf = WorldFrameTransform()
         self.jerk_calc = JerkCalculation()
 
-        # 50 samples @ 100 Hz = 0.5 s rolling window
         self.stats_dyn = WindowStats(window_size=50)
         self.stats_jerk = WindowStats(window_size=50)
         self.stats_signed = WindowStats(window_size=50)
 
     def _process_one(self):
-        # Reads one sample and runs it through the full pipeline.
-        # Returns (features_dict, raw_row_dict).
         now = time.ticks_ms()
 
         raw_x, raw_y, raw_z = self.accel.acceleration()
 
-        # Bias correction
         if self.calibration is not None:
             cal_x, cal_y, cal_z = self.calibration.apply(raw_x, raw_y, raw_z)
         else:
             cal_x, cal_y, cal_z = raw_x, raw_y, raw_z
 
-        # Gravity vs dynamic
         grav_result = self.grav_sep.update(cal_x, cal_y, cal_z)
         dyn_x, dyn_y, dyn_z = grav_result['dynamic']
         dyn_mag = grav_result['dynamic_magnitude']
         grav_x, grav_y, grav_z = grav_result['gravity']
 
-        # Rotate into world frame
         world_result = self.world_tf.process(dyn_x, dyn_y, dyn_z, grav_x, grav_y, grav_z)
         world_x, world_y, world_z = world_result['world_accel']
         roll_deg = world_result['roll_deg']
         pitch_deg = world_result['pitch_deg']
 
-        # Vector jerk on dynamic acceleration
         jerk_result = self.jerk_calc.update(dyn_x, dyn_y, dyn_z, now)
         jerk_mag = 0.0
         if jerk_result is not None:
             jerk_mag = jerk_result['jerk_magnitude']
 
-        # Push into rolling-window stats
         self.stats_dyn.add_sample(dyn_mag)
         self.stats_signed.add_sample(dyn_z)
         self.stats_jerk.add_sample(jerk_mag)
@@ -109,17 +91,10 @@ class AccelPipeline:
         return features, raw_row
 
     def read(self):
-        # Thin wrapper for callers that only want the feature dict
         features, _ = self._process_one()
         return features
 
     def read_burst(self, duration_ms=3000, raw_file=None, sample_period_ms=10):
-        # Sample for `duration_ms`, running the pipeline on each sample.
-        # Returns the LAST feature dict (that's what goes in the LoRa packet).
-        # If `raw_file` is an already-open append-mode file, every raw
-        # sample is written as a CSV row so the 100 Hz record is preserved.
-
-        # Reset jerk state so cross-burst stale prev_time_ms can't poison this read
         try:
             self.jerk_calc.reset()
         except Exception:
@@ -150,7 +125,6 @@ class AccelPipeline:
             sample_idx += 1
             time.sleep_ms(sample_period_ms)
 
-        # Fallback - if the burst was too short to get even one sample
         if last_features is None:
             last_features, _ = self._process_one()
 

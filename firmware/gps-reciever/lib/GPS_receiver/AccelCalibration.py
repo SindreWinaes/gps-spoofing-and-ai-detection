@@ -8,38 +8,18 @@
 # 
 #######################################################
 
-#
-# AccelCalibration.py
-# Estimates and removes accelerometer bias when the device is stationary.
-#
-# Orientation-invariant: the device only needs to sit STILL during
-# calibration, it does NOT need to be perfectly level. We measure the
-# mean acceleration vector, assume its magnitude equals 1 g (static =>
-# only gravity is acting), and solve for the bias. This avoids the old
-# failure mode where a small tilt during calibration got baked into the
-# X/Y bias and later poisoned the gravity-separation EMA.
-#
-
 import time
 import math
 
 
-# At 100 Hz ODR, 200 samples * 10 ms = ~2 s of averaging. Much steadier
-# bias estimate than the old 50 samples / 20 ms (~1 s) setup, which was
-# fine for 50 Hz but a bit short for 100 Hz.
 CALIBRATION_SAMPLES = 200
 SAMPLE_DELAY_MS = 10
 GRAVITY_REFERENCE = 1.0
-# If the measured mean magnitude deviates from 1 g by more than this
-# tolerance something's off (device was moving, scale misconfigured,
-# or sensor faulty). We still calibrate but warn so the operator can redo it.
-GRAVITY_TOLERANCE = 0.15  # ~ +/-0.15 g around 1.0 g
+GRAVITY_TOLERANCE = 0.15  # g
 
 
 class AccelCalibration:
-    """Stores and applies the per-axis accelerometer bias correction.
-    Takes an accel sensor in calibrate() - does not keep a reference to it.
-    """
+    """Per-axis accelerometer bias correction."""
 
     def __init__(self):
         self.bias_x = 0.0
@@ -61,9 +41,6 @@ class AccelCalibration:
             sum_z += az
             time.sleep_ms(SAMPLE_DELAY_MS)
 
-        # Mean acceleration vector while stationary. For an ideal sensor
-        # at rest this equals the gravity vector in the sensor frame:
-        # magnitude = 1 g, pointing whichever direction is "up".
         mean_x = sum_x / num_samples
         mean_y = sum_y / num_samples
         mean_z = sum_z / num_samples
@@ -71,9 +48,6 @@ class AccelCalibration:
         mean_mag = math.sqrt(mean_x * mean_x + mean_y * mean_y + mean_z * mean_z)
 
         if mean_mag < 1e-6:
-            # Sensor returned essentially zero on every axis - almost
-            # certainly a read error. Fall back to zero bias so the app
-            # can keep running rather than blow up here.
             print("WARNING: mean |a| near zero, calibration skipped")
             self.bias_x = 0.0
             self.bias_y = 0.0
@@ -81,9 +55,6 @@ class AccelCalibration:
             self.is_calibrated = False
             return (self.bias_x, self.bias_y, self.bias_z)
 
-        # Unit vector pointing in the direction of gravity (sensor frame).
-        # Times GRAVITY_REFERENCE that gives the "ideal" gravity reading.
-        # Bias is whatever the sensor reports ABOVE that ideal vector.
         unit_x = mean_x / mean_mag
         unit_y = mean_y / mean_mag
         unit_z = mean_z / mean_mag
@@ -108,7 +79,6 @@ class AccelCalibration:
         return (self.bias_x, self.bias_y, self.bias_z)
 
     def apply(self, raw_x, raw_y, raw_z):
-        # Subtract bias from a raw reading. No-op until calibrate() has run.
         if not self.is_calibrated:
             return (raw_x, raw_y, raw_z)
 

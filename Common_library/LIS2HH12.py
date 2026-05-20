@@ -71,20 +71,12 @@ class LIS2HH12:
         if whoami[0] != 0x41:
             raise ValueError("LIS2HH12 not found")
 
-        # 50 Hz output data rate is plenty for our pipeline
         self.set_odr(ODR_50_HZ)
-
-        # 4g full scale matches the expected motion range
         self.set_full_scale(FULL_SCALE_4G)
-
-        # Interrupt pin active-low, open-drain
         self.set_register(CTRL5_REG, 3, 0, 3)
-
-        # Prime the read so subsequent calls have valid data
         self.acceleration()
 
     def acceleration(self):
-        # Returns (x, y, z) in g
         x = self.i2c.readfrom_mem(ACC_I2CADDR, ACC_X_L_REG, 2)
         self.x = struct.unpack('<h', x)
         y = self.i2c.readfrom_mem(ACC_I2CADDR, ACC_Y_L_REG, 2)
@@ -122,7 +114,7 @@ class LIS2HH12:
         self.set_register(CTRL2_REG, 1 if hp else 0, 2, 1)
 
     def enable_activity_interrupt(self, threshold, duration, handler=None):
-        # threshold is in mg, duration is in ms
+        # threshold in mg, duration in ms
         self.act_dur = duration
 
         if threshold > self.SCALES[self.full_scale]:
@@ -151,14 +143,12 @@ class LIS2HH12:
         self.i2c.writeto_mem(ACC_I2CADDR, ACT_THS, _ths)
         self.i2c.writeto_mem(ACC_I2CADDR, ACT_DUR, _dur)
 
-        # Enable activity/inactivity interrupt
         self.set_register(CTRL3_REG, 1, 5, 1)
 
         self._user_handler = handler
         self.int_pin = Pin('P13', mode=Pin.IN)
         self.int_pin.callback(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._int_handler)
 
-        # Hand back the values actually used after quantisation
         return (_ths * self.SCALES[self.full_scale] / 128, _dur * 8 * 1000 / self.ODRS[self.odr])
 
     def activity(self):
