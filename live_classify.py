@@ -1,10 +1,6 @@
 """
 live_classify.py
 Top-level entry point for live GPS spoof classification.
-
-Just press the Play button in VS Code (or run `python live_classify.py`).
-Make sure the VS Code Python interpreter is set to the venv at
-.\venv\Scripts\python.exe so the imports below resolve.
 """
 
 from Pc_backend.Runtime.Receiver import Receiver

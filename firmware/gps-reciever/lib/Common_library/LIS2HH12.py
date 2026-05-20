@@ -71,8 +71,8 @@ class LIS2HH12:
         if whoami[0] != 0x41:
             raise ValueError("LIS2HH12 not found")
 
-        # 50 Hz output data rate is plenty for our pipeline
-        self.set_odr(ODR_50_HZ)
+        # 100 Hz output data rate
+        self.set_odr(ODR_100_HZ)
 
         # 4g full scale matches the expected motion range
         self.set_full_scale(FULL_SCALE_4G)

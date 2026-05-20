@@ -1,23 +1,23 @@
 {
   "track_name": "shap",
-  "accuracy": 0.5580985915492958,
-  "precision": 0.9242424242424242,
-  "recall": 0.5136842105263157,
-  "f1": 0.6603518267929634,
+  "accuracy": 0.4071207430340557,
+  "precision": 0.9216867469879518,
+  "recall": 0.21413575927221834,
+  "f1": 0.3475298126064736,
   "model_size_bytes": 689274,
-  "inference_time_ms": 1.0760000004665926,
+  "inference_time_ms": 1.6417999868281186,
   "confusion_matrix": [
     [
-      73,
-      20
+      483,
+      26
     ],
     [
-      231,
-      244
+      1123,
+      306
     ]
   ],
-  "inference_per_sample_ms": 0.0018943661980045645,
-  "n_rows": 568,
+  "inference_per_sample_ms": 0.0008471620159071819,
+  "n_rows": 1938,
   "n_features": 7,
   "feature_list": [
     "speed_per_jerk_std",

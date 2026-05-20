@@ -14,14 +14,35 @@ import time
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix,
+    confusion_matrix, roc_curve, auc,
 )
 
 from Pc_backend.Ml_pipeline.ModelBundle import ModelBundle
 from Pc_backend.Ml_pipeline.Metrics import Metrics
+
+
+# Styling for ROC plots - matches Figure 4.5 in the thesis
+_BG_COLOR    = "#EEF3F7"
+_GRID_COLOR  = "#C9D2DA"
+_DIAG_COLOR  = "#8E97A1"
+_SPINE_COLOR = "#B8C0C8"
+_TITLE_COLOR = "#1F2937"
+_SUBT_COLOR  = "#6B7280"
+
+_TRACK_COLORS = {
+    "shap":     "#5BB6C4",   # teal-blue
+    "ubiqtree": "#F0A05A",   # soft orange
+    "combined": "#7FCB9B",   # soft green
+}
+_TRACK_LABELS = {
+    "shap":     "SHAP track",
+    "ubiqtree": "UBiQTree track",
+    "combined": "Combined track",
+}
 
 
 class Evaluator:
@@ -112,6 +133,117 @@ class Evaluator:
             n_features=len(feature_list),
             feature_list=list(feature_list),
         )
+
+    def roc_data(self, holdout_df):
+        # Returns the data needed to draw a ROC curve for this bundle:
+        # FPR / TPR arrays, AUC value, and the track name. Uses exactly
+        # the same preprocessing as evaluate() so the curve is computed
+        # from the same probabilities that produced the confusion matrix.
+        bundle = self.bundle
+        scaler_features = list(bundle.scaler.feature_names_in_)
+        feature_list = list(bundle.feature_list)
+
+        df = holdout_df.dropna(subset=scaler_features).reset_index(drop=True)
+        X = df[scaler_features].copy()
+        y = df["Label"].astype(int).values
+
+        X_scaled = pd.DataFrame(
+            bundle.scaler.transform(X),
+            columns=X.columns,
+            index=X.index,
+        )
+        X_for_model = X_scaled[feature_list]
+
+        y_proba = bundle.model.predict(X_for_model)
+        fpr, tpr, _ = roc_curve(y, y_proba)
+        auc_value = auc(fpr, tpr)
+
+        return {
+            "track":      bundle.track_name,
+            "fpr":        fpr,
+            "tpr":        tpr,
+            "auc":        float(auc_value),
+            "n_features": len(feature_list),
+        }
+
+    def plot_roc(self, holdout_df, out_path):
+        # Single-track ROC plot, styled to match Figure 4.5 in the thesis.
+        data = self.roc_data(holdout_df)
+        self._draw_roc_figure(
+            curves=[data],
+            main_title=f"ROC Curve - {_TRACK_LABELS.get(data['track'], data['track'])}",
+            subtitle=(f"Binary GPS spoofing detection . LightGBM . "
+                      f"{data['n_features']} features"),
+            out_path=out_path,
+        )
+        print(f"  Wrote ROC plot to {out_path}  (AUC = {data['auc']:.4f})")
+        return data
+
+    # -----------------------------------------------------------------
+    # Static plotting helpers
+    # -----------------------------------------------------------------
+
+    @staticmethod
+    def plot_roc_comparison(roc_data_list, out_path):
+        # Draw all three tracks on the same axes. Pass a list of dicts
+        # returned by roc_data() - one per bundle.
+        Evaluator._draw_roc_figure(
+            curves=roc_data_list,
+            main_title="ROC Curves - Track Comparison",
+            subtitle="Binary GPS spoofing detection . Kiwi-Joker held-out session",
+            out_path=out_path,
+        )
+        print(f"  Wrote ROC comparison plot to {out_path}")
+
+    @staticmethod
+    def _draw_roc_figure(curves, main_title, subtitle, out_path):
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        fig.patch.set_facecolor(_BG_COLOR)
+        ax.set_facecolor(_BG_COLOR)
+
+        for c in curves:
+            color = _TRACK_COLORS.get(c["track"], "#4C9BC0")
+            ax.plot(c["fpr"], c["tpr"], color=color, lw=2.4)
+
+        ax.plot([0, 1], [0, 1], color=_DIAG_COLOR, lw=1.0, linestyle="--")
+
+        ax.set_xlim(-0.01, 1.0)
+        ax.set_ylim(0.0, 1.01)
+        ax.set_xlabel("False Positive Rate")
+        ax.set_ylabel("True Positive Rate")
+        ax.grid(True, color=_GRID_COLOR, lw=0.8, linestyle="--", alpha=0.7)
+        for spine in ax.spines.values():
+            spine.set_color(_SPINE_COLOR)
+        ax.tick_params(colors="#4B5563")
+
+        # Two-line title: bold main + smaller subtitle
+        ax.set_title(main_title, fontsize=13, fontweight="bold",
+                     color=_TITLE_COLOR, pad=22)
+        ax.text(0.5, 1.02, subtitle, transform=ax.transAxes,
+                ha="center", va="bottom", fontsize=10, color=_SUBT_COLOR)
+
+        # Custom legend to the right of the plot, each entry coloured to
+        # match the curve
+        x0 = 1.04
+        y = 0.92
+        for c in curves:
+            color = _TRACK_COLORS.get(c["track"], "#4C9BC0")
+            label = _TRACK_LABELS.get(c["track"], c["track"])
+            ax.plot([x0, x0 + 0.05], [y, y], transform=ax.transAxes,
+                    color=color, lw=2.5, clip_on=False)
+            ax.text(x0 + 0.07, y + 0.005, label, transform=ax.transAxes,
+                    fontsize=10, color=color, fontweight="bold",
+                    va="center", clip_on=False)
+            ax.text(x0 + 0.07, y - 0.045, f"AUC = {c['auc']:.4f}",
+                    transform=ax.transAxes,
+                    fontsize=10, color=color, fontweight="bold",
+                    va="center", clip_on=False)
+            y -= 0.13
+
+        fig.subplots_adjust(left=0.08, right=0.78, top=0.85, bottom=0.12)
+        fig.savefig(out_path, dpi=150, bbox_inches="tight",
+                    facecolor=fig.get_facecolor())
+        plt.close(fig)
 
     # -----------------------------------------------------------------
     # Private helpers

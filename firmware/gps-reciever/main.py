@@ -61,6 +61,33 @@ def is_valid_gps(gps_data):
     return True
 
 
+def is_valid_date(utc_date):
+    # The L76 module reports the default GPS epoch (DDMMYY = "050180",
+    # 5 January 1980) until it has decoded enough of the satellite
+    # navigation message to know the real date. Reject that value here
+    # so the log filename and the utc_date column reflect the actual
+    # UTC date rather than the GPS startup default.
+    if not utc_date or len(utc_date) != 6:
+        return False
+    if utc_date == '050180':
+        return False
+    try:
+        day = int(utc_date[0:2])
+        month = int(utc_date[2:4])
+        year = int(utc_date[4:6])
+    except ValueError:
+        return False
+    if not (1 <= day <= 31):
+        return False
+    if not (1 <= month <= 12):
+        return False
+    # Two-digit year window. Project ran from 2025 onward, so any
+    # year before 25 is the GPS still using its rollover default.
+    if year < 25:
+        return False
+    return True
+
+
 def run_accel_bursts(accel_pipeline, lora_tx, sd_logger, n_bursts,
                      burst_ms, accel_count, gps_data_for_utc=None):
     # Run `n_bursts` short accel bursts back-to-back, each transmitting
@@ -126,7 +153,8 @@ def main():
     # ---- WARMUP: wait for first GPS fix so we can name the SD log file ----
     while sd_logger is None:
         gps_data = gps.read()
-        if gps_data and gps_data.get('utc_time') and gps_data.get('utc_date'):
+        if (gps_data and gps_data.get('utc_time')
+                and is_valid_date(gps_data.get('utc_date'))):
             last_gps = gps_data
 
         accel_data = accel_pipeline.read_burst(duration_ms=ACCEL_BURST_MS)
@@ -135,7 +163,8 @@ def main():
             print("Accel sent ({})".format(accel_count))
 
         if (gps_data and gps_data['fix'] in [1, 2]
-                and gps_data['utc_date'] and gps_data['utc_time']):
+                and gps_data['utc_time']
+                and is_valid_date(gps_data['utc_date'])):
             timestamp = "{}_{:.0f}".format(
                 gps_data['utc_date'], float(gps_data['utc_time']))
             sd_logger = SdLogger(timestamp)
@@ -173,7 +202,8 @@ def main():
 
             # --- GPS read (typically ~1-2 s, capped at 5 s) ---
             gps_data = gps.read()
-            if gps_data and gps_data.get('utc_time') and gps_data.get('utc_date'):
+            if (gps_data and gps_data.get('utc_time')
+                    and is_valid_date(gps_data.get('utc_date'))):
                 last_gps = gps_data
 
             # --- Other half of the accel bursts AFTER the GPS read ---
